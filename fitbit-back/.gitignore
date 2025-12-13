@@ -1,1 +1,26 @@
-.venv
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg
+*.eggs
+*.dist-info/
+*.egg-info/
+.venv/
+env/
+build/
+dist/
+*.log
+
+# FastAPI specific
+*.db
+*.sqlite3
+
+# IDEs (se estiver usando)
+.vscode/
+.idea/
+
+# Dependencies
+node_modules/
