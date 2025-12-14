@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 from app.schemas.auth_schema import PatientCreate, PatientResponse 
-from app.services.auth_mock import create_patient
+from app.services.auth_service import create_patient
 
 # Initialize the router to group these endpoints under the "/auth" URL prefix
 router = APIRouter(prefix="/auth", tags=["Authentication"])
