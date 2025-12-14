@@ -9,7 +9,7 @@ class PatientCreate(PatientBase):
     password: str
 
 class PatientResponse(PatientBase):
-    class Config:
+    class ConfigDict:
         from_attributes = True
 
 # --- DOCTOR ---
@@ -22,5 +22,5 @@ class DoctorCreate(DoctorBase):
     password: str
 
 class DoctorResponse(DoctorBase):
-    class Config:
+    class ConfigDict:
         from_attributes = True

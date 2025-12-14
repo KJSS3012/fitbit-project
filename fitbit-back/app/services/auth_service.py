@@ -17,6 +17,11 @@ fake_doctors_db: List[Dict[str, Any]] = []
 # --- Patient Logic ---
 def create_patient(patient_in: PatientCreate) -> PatientResponse:
 
+    # Clean input data
+    patient_in.name = patient_in.name.upper().strip()
+    patient_in.cpf = patient_in.cpf.strip()
+    patient_in.password = patient_in.password.strip()
+
     # 400 Bad Request: Name validation
     name_errors = validate_name(patient_in.name)
     if name_errors:
@@ -64,6 +69,12 @@ def create_patient(patient_in: PatientCreate) -> PatientResponse:
 # --- Doctor Logic ---
 def create_doctor(doctor_in: DoctorCreate) -> DoctorResponse:
     
+    # Clean input data
+    doctor_in.name = doctor_in.name.upper().strip()
+    doctor_in.cpf = doctor_in.cpf.strip()
+    doctor_in.crm = doctor_in.crm.upper().strip()
+    doctor_in.password = doctor_in.password.strip()
+
     # 400 Bad Request: Name validation
     name_errors = validate_name(doctor_in.name)
     if name_errors:

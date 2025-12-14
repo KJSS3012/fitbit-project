@@ -5,6 +5,12 @@ from typing import List
 def validate_name(name: str) -> List[str]:
     errors = []
 
+    if not name.strip():
+        errors.append("Name cannot be empty or only spaces")
+        
+    if name != name.strip():
+        errors.append("Name cannot have leading or trailing spaces")
+
     if not name:
         errors.append("Name is required.")
         return errors
