@@ -61,12 +61,14 @@ def validate_cpf(cpf: str) -> List[str]:
 
     if not cpf.isdigit():
         errors.append("CPF must contain only digits.")
+        return errors
 
     if len(cpf) != 11:
         errors.append("CPF must contain exactly 11 digits.")
+        return errors
 
-    if cpf and cpf == cpf[0] * len(cpf):
-        errors.append("CPF inválido.")
+    if cpf == cpf[0] * 11:
+        errors.append("Invalid CPF.")
         return errors
 
     def calc_digit(seq: str, factor: int) -> int:
@@ -74,10 +76,31 @@ def validate_cpf(cpf: str) -> List[str]:
         remainder = total % 11
         return 0 if remainder < 2 else 11 - remainder
 
-    if (
-        int(cpf[9]) != calc_digit(cpf[:9], 10)
-        or int(cpf[10]) != calc_digit(cpf[:10], 11)
-    ):
+    if int(cpf[9]) != calc_digit(cpf[:9], 10):
         errors.append("Invalid CPF.")
+        return errors
+
+    if int(cpf[10]) != calc_digit(cpf[:10], 11):
+        errors.append("Invalid CPF.")
+
+    return errors
+
+# --- Valid CRM verification ---
+def validate_crm(crm: str) -> List[str]:
+    errors = []
+
+    if not crm:
+        errors.append("CRM is required.")
+        return errors
+
+    crm = crm.strip().upper()
+
+    if len(crm) != 8:
+        errors.append("CRM must be exactly 8 characters.")
+        return errors
+
+    if not re.fullmatch(r"[A-Z]{2}\d{6}", crm):
+        errors.append("Invalid CRM format. Expected format: SP123456.")
+        return errors
 
     return errors
