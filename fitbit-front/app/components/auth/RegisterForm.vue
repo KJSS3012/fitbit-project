@@ -1,5 +1,6 @@
 <script setup lang="ts">
-const { register } = useAuth()
+import { register as registerAPI } from '~/services/api'
+
 const toast = useToast()
 
 const tabs = [
@@ -9,6 +10,7 @@ const tabs = [
 
 const state = reactive({
   userType: 'paciente',
+  name: '',
   cpf: '',
   crm: '',
   password: '',
@@ -33,6 +35,16 @@ const formatCPF = (event: Event) => {
 }
 
 const validateForm = () => {
+  if (!state.name.trim()) {
+    toast.add({
+      title: 'Nome obrigatório',
+      description: 'Informe seu nome completo',
+      color: 'error',
+      icon: 'i-heroicons-exclamation-circle'
+    })
+    return false
+  }
+
   if (state.cpf.replace(/\D/g, '').length !== 11) {
     toast.add({
       title: 'CPF inválido',
@@ -92,12 +104,14 @@ const onSubmit = async () => {
   loading.value = true
 
   try {
-    await register({
+    await registerAPI({
       user_type: state.userType,
       cpf: state.cpf.replace(/\D/g, ''),
-      crm: state.userType === 'medico' ? state.crm : undefined,
-      password: state.password
+      name: state.name,
+      password: state.password,
+      crm: state.userType === 'medico' ? state.crm : undefined
     })
+
 
     toast.add({
       title: 'Conta criada com sucesso',
@@ -142,6 +156,11 @@ const onSubmit = async () => {
       <!-- Campos dinâmicos -->
       <Transition name="fade-slide" mode="out-in">
         <div :key="state.userType" class="space-y-4">
+          <!-- Nome -->
+          <UFormField label="Nome Completo" required>
+            <UInput v-model="state.name" placeholder="Digite seu nome completo" size="lg" class="w-full" />
+          </UFormField>
+
           <!-- CPF -->
           <UFormField label="CPF" required>
             <UInput v-model="state.cpf" placeholder="000.000.000-00" size="lg" class="w-full" maxlength="14"
