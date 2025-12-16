@@ -1,4 +1,3 @@
-<!-- app.vue -->
 <script setup lang="ts">
 useHead({
   meta: [
@@ -16,7 +15,9 @@ useSeoMeta({
 </script>
 
 <template>
-  <UApp>
-    <NuxtPage />
-  </UApp>
+  <ConfigProvider>
+    <UApp>
+      <NuxtPage />
+    </UApp>
+  </ConfigProvider>
 </template>

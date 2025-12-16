@@ -12,6 +12,7 @@ export interface LoginCredentials {
 export interface RegisterData {
   user_type: string
   cpf: string
+  name: string
   crm?: string
   password: string
 }
@@ -69,9 +70,17 @@ export const useAuth = () => {
    */
   const register = async (data: RegisterData) => {
     try {
-      const response = await $fetch<{ message: string; user: User }>(`${API_BASE_URL}/auth/register`, {
+      // Define o endpoint baseado no tipo de usuário
+      const endpoint = data.user_type === 'medico'
+        ? `${API_BASE_URL}/auth/register/doctor`
+        : `${API_BASE_URL}/auth/register/patient`
+
+      const response = await $fetch<{ message: string; user: User }>(endpoint, {
         method: 'POST',
-        body: data
+        body: data,
+        headers: {
+          'Content-Type': 'application/json'
+        }
       })
 
       return response
