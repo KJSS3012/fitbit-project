@@ -1,13 +1,42 @@
 import os
 import base64
 import requests
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, status
 from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
 
+from app.schemas.auth_schema import (
+    PatientCreate,
+    PatientResponse,
+    DoctorCreate,
+    DoctorResponse
+)
+from app.services.auth_service import create_patient, create_doctor
+
 load_dotenv()
 
-router = APIRouter()
+router = APIRouter(tags=["Authentication", "Fitbit"])
+
+# Auth (Register)
+
+@router.post(
+    "/auth/register/patient",
+    response_model=PatientResponse,
+    status_code=status.HTTP_201_CREATED
+)
+def register_patient(patient: PatientCreate):
+    return create_patient(patient)
+
+
+@router.post(
+    "/auth/register/doctor",
+    response_model=DoctorResponse,
+    status_code=status.HTTP_201_CREATED
+)
+def register_doctor(doctor: DoctorCreate):
+    return create_doctor(doctor)
+
+# Fitbit OAuth
 
 FITBIT_CLIENT_ID = os.getenv("FITBIT_CLIENT_ID")
 FITBIT_CLIENT_SECRET = os.getenv("FITBIT_CLIENT_SECRET")
@@ -18,6 +47,7 @@ FITBIT_TOKEN_URL = "https://api.fitbit.com/oauth2/token"
 FITBIT_API_BASE_URL = "https://api.fitbit.com/1/user/-"
 
 user_tokens = {}
+
 
 @router.get("/fitbit")
 def initiate_fitbit_auth():
@@ -30,6 +60,7 @@ def initiate_fitbit_auth():
     )
     return RedirectResponse(authorization_url)
 
+
 @router.get("/fitbit/callback")
 def handle_fitbit_callback(code: str = Query(...)):
     credentials = f"{FITBIT_CLIENT_ID}:{FITBIT_CLIENT_SECRET}"
@@ -40,18 +71,22 @@ def handle_fitbit_callback(code: str = Query(...)):
         "Content-Type": "application/x-www-form-urlencoded",
     }
 
-    token_request_data = {
+    data = {
         "grant_type": "authorization_code",
         "redirect_uri": FITBIT_REDIRECT_URI,
         "code": code,
     }
 
-    token_response = requests.post(FITBIT_TOKEN_URL, headers=headers, data=token_request_data)
-    token_response.raise_for_status()
+    response = requests.post(FITBIT_TOKEN_URL, headers=headers, data=data)
+    response.raise_for_status()
 
-    user_tokens["fitbit"] = token_response.json()
+    user_tokens["fitbit"] = response.json()
 
-    return {"message": "Successfully authenticated", "tokens": user_tokens["fitbit"]}
+    return {
+        "message": "Successfully authenticated with Fitbit",
+        "tokens": user_tokens["fitbit"]
+    }
+
 
 @router.get("/fitbit/profile")
 def get_fitbit_profile():
@@ -61,5 +96,9 @@ def get_fitbit_profile():
         "Authorization": f"Bearer {access_token}"
     }
 
-    profile_response = requests.get(f"{FITBIT_API_BASE_URL}/profile.json", headers=headers)
-    return profile_response.json()
+    response = requests.get(
+        f"{FITBIT_API_BASE_URL}/profile.json",
+        headers=headers
+    )
+
+    return response.json()
