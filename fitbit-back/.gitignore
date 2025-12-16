@@ -18,7 +18,10 @@ dist/
 *.db
 *.sqlite3
 
-# IDEs (se estiver usando)
+# Environment variables
+.env
+
+# IDEs
 .vscode/
 .idea/
 
