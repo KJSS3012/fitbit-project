@@ -31,27 +31,27 @@ def create_patient(patient_in: PatientCreate) -> PatientResponse:
     patient_in.password = patient_in.password.strip()
 
     # 400 Bad Request: Name validation
-    name_errors = validate_name(patient_in.name)
-    if name_errors:
+    name_error = validate_name(patient_in.name)
+    if name_error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=name_errors
+            detail=name_error
         )
 
     # 400 Bad Request: CPF validation
-    cpf_errors = validate_cpf(patient_in.cpf)
-    if cpf_errors:
+    cpf_error = validate_cpf(patient_in.cpf)
+    if cpf_error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=cpf_errors
+            detail=cpf_error
         )
 
     # 400 Bad Request: Password validation
-    password_errors = check_password_complexity(patient_in.password)
-    if password_errors:
+    password_error = check_password_complexity(patient_in.password)
+    if password_error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=password_errors
+            detail=password_error
         )
 
     # 409 Conflict: CPF duplication
@@ -81,11 +81,11 @@ def login_patient(credentials_in: PatientLogin) -> PatientResponse:
     credentials_in.password = credentials_in.password.strip()
 
     # 400 Bad Request: CPF validation
-    cpf_errors = validate_cpf(credentials_in.cpf)
-    if cpf_errors:
+    cpf_error = validate_cpf(credentials_in.cpf)
+    if cpf_error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=cpf_errors
+            detail=cpf_error
         )
     
     # 401 Unauthorized: Find user by CPF
@@ -123,35 +123,35 @@ def create_doctor(doctor_in: DoctorCreate) -> DoctorResponse:
     doctor_in.password = doctor_in.password.strip()
 
     # 400 Bad Request: Name validation
-    name_errors = validate_name(doctor_in.name)
-    if name_errors:
+    name_error = validate_name(doctor_in.name)
+    if name_error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=name_errors
+            detail=name_error
         )
 
     # 400 Bad Request: CPF validation
-    cpf_errors = validate_cpf(doctor_in.cpf)
-    if cpf_errors:
+    cpf_error = validate_cpf(doctor_in.cpf)
+    if cpf_error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=cpf_errors
+            detail=cpf_error
         )
 
     # 400 Bad Request: CRM validation
-    crm_errors = validate_crm(doctor_in.crm)
-    if crm_errors:
+    crm_error = validate_crm(doctor_in.crm)
+    if crm_error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=crm_errors
+            detail=crm_error
         )
 
     # 400 Bad Request: Password validation
-    password_errors = check_password_complexity(doctor_in.password)
-    if password_errors:
+    password_error = check_password_complexity(doctor_in.password)
+    if password_error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=password_errors
+            detail=password_error
         )
     
     # 409 Conflict: CRM duplication (UNIQUE constraint)
@@ -183,11 +183,11 @@ def login_doctor(credentials_in: DoctorLogin) -> DoctorResponse:
     credentials_in.password = credentials_in.password.strip()
 
     # 400 Bad Request: CRM validation
-    crm_errors = validate_crm(credentials_in.crm)
-    if crm_errors:
+    crm_error = validate_crm(credentials_in.crm)
+    if crm_error:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=crm_errors
+            detail=crm_error
         )
 
     # 401 Unauthorized: Find user by CRM
