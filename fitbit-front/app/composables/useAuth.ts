@@ -30,33 +30,24 @@ export const useAuth = () => {
    * Realiza o login do usuário
    */
   const login = async (
-    userType: string,
-    identifier: string,
+    userType: 'paciente' | 'medico',
+    cpf: string,
     password: string,
-    rememberMe: boolean = false
+    rememberMe = false
   ) => {
     try {
-      const response = await $fetch<{ access_token: string; user: User }>(`${API_BASE_URL}/auth/login`, {
+      const endpoint =
+        userType === 'medico'
+          ? `${API_BASE_URL}/auth/login/doctor`
+          : `${API_BASE_URL}/auth/login/patient`
+
+      const response = await $fetch(endpoint, {
         method: 'POST',
         body: {
-          user_type: userType,
-          identifier,
+          cpf,
           password
         }
       })
-
-      // Armazena o token
-      token.value = response.access_token
-
-      // Atualiza o estado do usuário
-      user.value = response.user
-
-      // Se rememberMe for true, o cookie já persiste por 7 dias
-      // Caso contrário, podemos ajustar a duração
-      if (!rememberMe) {
-        token.value = response.access_token
-        // Cookie expira ao fechar o navegador
-      }
 
       return response
     } catch (error: any) {

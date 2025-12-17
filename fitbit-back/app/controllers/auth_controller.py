@@ -4,16 +4,24 @@ from dotenv import load_dotenv
 from app.schemas.auth_schema import (
     PatientCreate,
     PatientResponse,
+    PatientLogin,
     DoctorCreate,
-    DoctorResponse
+    DoctorResponse,
+    DoctorLogin
 )
-from app.services.auth_service import create_patient, create_doctor
+from app.services.auth_service import (
+    create_patient,
+    login_patient,
+    create_doctor,
+    login_doctor
+)
 
 load_dotenv()
 
 router = APIRouter(tags=["Authentication", "Fitbit"])
 
-# Auth (Register)
+
+# --- PATIENT ROUTES ---
 
 @router.post(
     "/register/patient",
@@ -23,6 +31,16 @@ router = APIRouter(tags=["Authentication", "Fitbit"])
 def register_patient(patient: PatientCreate):
     return create_patient(patient)
 
+@router.post(
+    "/login/patient",
+    response_model=PatientResponse,
+) 
+def login_patient_route(credentials: PatientLogin):
+    patient = login_patient(credentials) 
+    return patient
+
+
+# --- DOCTOR ROUTES ---
 
 @router.post(
     "/register/doctor",
@@ -31,3 +49,11 @@ def register_patient(patient: PatientCreate):
 )
 def register_doctor(doctor: DoctorCreate):
     return create_doctor(doctor)
+
+@router.post(
+    "/login/doctor",
+    response_model=DoctorResponse,
+) 
+def login_doctor_route(credentials: DoctorLogin):
+    doctor = login_doctor(credentials) 
+    return doctor

@@ -8,6 +8,10 @@ class PatientBase(BaseModel):
 class PatientCreate(PatientBase):
     password: str
 
+class PatientLogin(BaseModel): 
+    cpf: str
+    password: str
+
 class PatientResponse(PatientBase):
     class ConfigDict:
         from_attributes = True
@@ -19,6 +23,10 @@ class DoctorBase(BaseModel):
     name: str
 
 class DoctorCreate(DoctorBase):
+    password: str
+
+class DoctorLogin(BaseModel): 
+    crm: str
     password: str
 
 class DoctorResponse(DoctorBase):
