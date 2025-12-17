@@ -8,6 +8,10 @@ class PatientBase(BaseModel):
 class PatientCreate(PatientBase):
     password: str
 
+class PatientLogin(BaseModel): 
+    cpf: str
+    password: str
+
 class PatientResponse(PatientBase):
     class ConfigDict:
         from_attributes = True

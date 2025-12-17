@@ -1,5 +1,11 @@
 from fastapi import status, HTTPException
-from app.schemas.auth_schema import PatientCreate, PatientResponse, DoctorCreate, DoctorResponse
+from app.schemas.auth_schema import (
+    PatientCreate,
+    PatientResponse,
+    PatientLogin,
+    DoctorCreate,
+    DoctorResponse
+)
 from app.services.auth_validators import (
     check_password_complexity,
     validate_cpf,
@@ -14,7 +20,8 @@ fake_patients_db: List[Dict[str, Any]] = []
 fake_doctors_db: List[Dict[str, Any]] = []
 
 
-# --- Patient Logic ---
+# --- PATIENT LOGIC ---
+
 def create_patient(patient_in: PatientCreate) -> PatientResponse:
 
     # Clean input data
@@ -64,6 +71,45 @@ def create_patient(patient_in: PatientCreate) -> PatientResponse:
     return PatientResponse(
         cpf=patient_data["cpf"],
         name=patient_data["name"]
+    )
+
+
+def login_patient(credentials_in: PatientLogin) -> PatientResponse:
+    
+    # Clean input data
+    credentials_in.cpf = credentials_in.cpf.strip()
+    credentials_in.password = credentials_in.password.strip()
+
+    # 400 Bad Request: CPF validation (Opcional, mas boa prática no login também)
+    cpf_errors = validate_cpf(credentials_in.cpf)
+    if cpf_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=cpf_errors
+        )
+    
+    # 401 Unauthorized: Find user by CPF
+    patient_record = next(
+        (p for p in fake_patients_db if p.get("cpf") == credentials_in.cpf),
+        None
+    )
+    if not patient_record:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials."
+        )
+
+    # 401 Unauthorized: Password verification
+    if patient_record.get("password") != credentials_in.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials."
+        )
+
+    # 200 Successful Response: Authentication successful
+    return PatientResponse(
+        cpf=patient_record["cpf"],
+        name=patient_record["name"]
     )
 
 # --- Doctor Logic ---
