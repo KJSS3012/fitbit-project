@@ -64,7 +64,7 @@ def callback(code: str = Query(...)):
     response.raise_for_status()
 
     user_tokens["fitbit"] = response.json()
-    return {"status": "authenticated"}
+    return RedirectResponse("http://localhost:3000/dashboard")
 
 @router.get("/profile")
 def profile():

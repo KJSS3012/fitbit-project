@@ -8,7 +8,7 @@ const tabs = [
 ]
 
 const state = reactive({
-  userType: 'paciente',
+  userType: 'paciente' as 'paciente' | 'medico',
   cpf: '',
   crm: '',
   password: '',
@@ -119,11 +119,7 @@ const onSubmit = async () => {
     </template>
 
     <!-- Tabs -->
-    <UTabs
-      v-model="state.userType"
-      :items="tabs"
-      class="mb-4"
-    />
+    <UTabs v-model="state.userType" :items="tabs" class="mb-4" />
 
     <!-- Form -->
     <UForm class="space-y-4" @submit="onSubmit">
@@ -131,46 +127,21 @@ const onSubmit = async () => {
       <Transition name="fade-slide" mode="out-in">
         <div :key="state.userType">
           <!-- CPF -->
-          <UFormField
-            v-if="state.userType === 'paciente'"
-            label="CPF"
-            required
-          >
-            <UInput
-              v-model="state.cpf"
-              placeholder="000.000.000-00"
-              size="lg"
-              class="w-full"
-              maxlength="14"
-              @input="formatCPF"
-            />
+          <UFormField v-if="state.userType === 'paciente'" label="CPF" required>
+            <UInput v-model="state.cpf" placeholder="000.000.000-00" size="lg" class="w-full" maxlength="14"
+              @input="formatCPF" />
           </UFormField>
 
           <!-- CRM -->
-          <UFormField
-            v-else
-            label="CRM"
-            required
-          >
-            <UInput
-              v-model="state.crm"
-              placeholder="Digite seu CRM"
-              class="w-full"
-              size="lg"
-            />
+          <UFormField v-else label="CRM" required>
+            <UInput v-model="state.crm" placeholder="Digite seu CRM" class="w-full" size="lg" />
           </UFormField>
         </div>
       </Transition>
 
       <!-- Senha -->
       <UFormField label="Senha" required>
-        <UInput
-          v-model="state.password"
-          type="password"
-          placeholder="••••••••••••"
-          class="w-full"
-          size="lg"
-        />
+        <UInput v-model="state.password" type="password" placeholder="••••••••••••" class="w-full" size="lg" />
       </UFormField>
 
       <div class="flex items-center justify-between">
@@ -180,12 +151,7 @@ const onSubmit = async () => {
         </UButton>
       </div>
 
-      <UButton
-        type="submit"
-        block
-        size="lg"
-        :loading="loading"
-      >
+      <UButton type="submit" block size="lg" :loading="loading">
         Entrar
       </UButton>
     </UForm>
@@ -194,12 +160,7 @@ const onSubmit = async () => {
     <template #footer>
       <div class="text-center text-sm text-gray-500">
         Não tem conta?
-        <UButton
-          variant="link"
-          size="sm"
-          :padded="false"
-          @click="navigateTo('/auth/register')"
-        >
+        <UButton variant="link" size="sm" :padded="false" @click="navigateTo('/auth/register')">
           Registre-se
         </UButton>
       </div>

@@ -5,6 +5,12 @@ export default defineNuxtConfig({
     '@nuxt/ui'
   ],
 
+  runtimeConfig: {
+    public: {
+      apiBase: 'http://127.0.0.1:8000'
+    }
+  },
+
   devtools: {
     enabled: true
   },
