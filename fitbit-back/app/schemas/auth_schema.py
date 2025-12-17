@@ -25,6 +25,10 @@ class DoctorBase(BaseModel):
 class DoctorCreate(DoctorBase):
     password: str
 
+class DoctorLogin(BaseModel): 
+    crm: str
+    password: str
+
 class DoctorResponse(DoctorBase):
     class ConfigDict:
         from_attributes = True

@@ -4,7 +4,8 @@ from app.schemas.auth_schema import (
     PatientResponse,
     PatientLogin,
     DoctorCreate,
-    DoctorResponse
+    DoctorResponse,
+    DoctorLogin
 )
 from app.services.auth_validators import (
     check_password_complexity,
@@ -73,14 +74,13 @@ def create_patient(patient_in: PatientCreate) -> PatientResponse:
         name=patient_data["name"]
     )
 
-
 def login_patient(credentials_in: PatientLogin) -> PatientResponse:
     
     # Clean input data
     credentials_in.cpf = credentials_in.cpf.strip()
     credentials_in.password = credentials_in.password.strip()
 
-    # 400 Bad Request: CPF validation (Opcional, mas boa prática no login também)
+    # 400 Bad Request: CPF validation
     cpf_errors = validate_cpf(credentials_in.cpf)
     if cpf_errors:
         raise HTTPException(
@@ -112,7 +112,8 @@ def login_patient(credentials_in: PatientLogin) -> PatientResponse:
         name=patient_record["name"]
     )
 
-# --- Doctor Logic ---
+# --- DOCTOR LOGIC ---
+
 def create_doctor(doctor_in: DoctorCreate) -> DoctorResponse:
     
     # Clean input data
@@ -173,4 +174,43 @@ def create_doctor(doctor_in: DoctorCreate) -> DoctorResponse:
         cpf=doctor_data["cpf"], 
         name=doctor_data["name"], 
         crm=doctor_data["crm"]
+    )
+
+def login_doctor(credentials_in: DoctorLogin) -> DoctorResponse:
+    
+    # Clean input data
+    credentials_in.crm = credentials_in.crm.strip()
+    credentials_in.password = credentials_in.password.strip()
+
+    # 400 Bad Request: CRM validation
+    crm_errors = validate_crm(credentials_in.crm)
+    if crm_errors:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=crm_errors
+        )
+
+    # 401 Unauthorized: Find user by CRM
+    doctor_record = next(
+        (d for d in fake_doctors_db if d.get("crm") == credentials_in.crm),
+        None
+    )
+    if not doctor_record:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials."
+        )
+
+    # 401 Unauthorized: Password verification 
+    if doctor_record.get("password") != credentials_in.password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials."
+        )
+
+    # 200 Successful Response: Authentication successful
+    return DoctorResponse(
+        cpf=doctor_record["cpf"],
+        crm=doctor_record["crm"],
+        name=doctor_record["name"]
     )
