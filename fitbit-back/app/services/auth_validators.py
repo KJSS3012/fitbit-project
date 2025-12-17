@@ -80,6 +80,13 @@ def validate_cpf(cpf: str) -> str | None:
 # --- Valid CRM verification ---
 def validate_crm(crm: str) -> str | None:
 
+    # List of valid Brazilian federative units (states)
+    VALID_UFS = {
+        "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT",
+        "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO",
+        "RR", "SC", "SP", "SE", "TO"
+    }
+
     crm = crm.strip().upper()
 
     if not crm:
@@ -90,5 +97,10 @@ def validate_crm(crm: str) -> str | None:
 
     elif not re.fullmatch(r"[A-Z]{2}\d{6}", crm):
         return "Invalid CRM format. Expected format: SP123456 (2 letters for state and 6 digits)."
+
+    acronym = crm[:2]
+    
+    if acronym not in VALID_UFS:
+        return f"The state acronym '{acronym}' is not valid."
 
     return None

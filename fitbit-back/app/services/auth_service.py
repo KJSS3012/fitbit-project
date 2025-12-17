@@ -153,8 +153,15 @@ def create_doctor(doctor_in: DoctorCreate) -> DoctorResponse:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=password_error
         )
+     
+    # 409 Conflict: CPF duplication
+    if any(p.get("cpf") == doctor_in.cpf for p in fake_doctors_db):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="CPF already registered."
+        )
     
-    # 409 Conflict: CRM duplication (UNIQUE constraint)
+    # 409 Conflict: CRM duplication
     if any(d.get("crm") == doctor_in.crm for d in fake_doctors_db):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
