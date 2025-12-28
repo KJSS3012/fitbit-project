@@ -5,40 +5,63 @@ defineProps<{
   collapsed?: boolean
 }>()
 
-const teams = ref([{
-  label: 'Clínica Principal',
-  avatar: {
-    src: 'https://api.dicebear.com/7.x/shapes/svg?seed=clinic',
-    alt: 'Clínica Principal'
+const { user, isDoctor } = useAuth()
+
+// Apenas médicos veem o menu de unidades/clínicas
+const teams = computed(() => {
+  if (!isDoctor.value) {
+    return [{
+      label: 'Minha Conta',
+      avatar: {
+        src: `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.value?.id}`,
+        alt: user.value?.name || 'Paciente'
+      }
+    }]
   }
-}, {
-  label: 'Unidade Norte',
-  avatar: {
-    src: 'https://api.dicebear.com/7.x/shapes/svg?seed=north',
-    alt: 'Unidade Norte'
-  }
-}, {
-  label: 'Unidade Sul',
-  avatar: {
-    src: 'https://api.dicebear.com/7.x/shapes/svg?seed=south',
-    alt: 'Unidade Sul'
-  }
-}])
+
+  return [{
+    label: 'Clínica Principal',
+    avatar: {
+      src: 'https://api.dicebear.com/7.x/shapes/svg?seed=clinic',
+      alt: 'Clínica Principal'
+    }
+  }, {
+    label: 'Unidade Norte',
+    avatar: {
+      src: 'https://api.dicebear.com/7.x/shapes/svg?seed=north',
+      alt: 'Unidade Norte'
+    }
+  }, {
+    label: 'Unidade Sul',
+    avatar: {
+      src: 'https://api.dicebear.com/7.x/shapes/svg?seed=south',
+      alt: 'Unidade Sul'
+    }
+  }]
+})
+
 const selectedTeam = ref(teams.value[0])
 
 const items = computed<DropdownMenuItem[][]>(() => {
-  return [teams.value.map(team => ({
+  const menuItems: DropdownMenuItem[][] = [teams.value.map(team => ({
     ...team,
     onSelect() {
       selectedTeam.value = team
     }
-  })), [{
-    label: 'Criar unidade',
-    icon: 'i-lucide-circle-plus'
-  }, {
-    label: 'Gerenciar unidades',
-    icon: 'i-lucide-cog'
-  }]]
+  }))]
+
+  // Apenas médicos podem criar/gerenciar unidades
+  if (isDoctor.value) {
+    menuItems.push([{
+      label: 'Criar unidade',
+      icon: 'i-lucide-circle-plus'
+    } as DropdownMenuItem, {
+      label: 'Gerenciar unidades',
+      icon: 'i-lucide-cog'
+    } as DropdownMenuItem])
+  }
+
+  return menuItems
 })
 </script>
 

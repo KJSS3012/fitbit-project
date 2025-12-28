@@ -2,36 +2,62 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
+const { user, isDoctor, isPatient } = useAuth()
 
 const open = ref(false)
 
-const links = [[{
-  label: 'Dashboard',
-  icon: 'i-lucide-house',
-  to: '/dashboard',
-  onSelect: () => {
-    open.value = false
+// Links dinâmicos baseados no tipo de usuário
+const links = computed(() => {
+  if (isDoctor.value) {
+    // Menu para médicos: Dashboard (lista de pacientes) e Pacientes
+    return [[{
+      label: 'Pacientes',
+      icon: 'i-lucide-users',
+      to: '/dashboard',
+      onSelect: () => {
+        open.value = false
+      }
+    }], [{
+      label: 'Ajuda',
+      icon: 'i-lucide-info',
+      to: '/dashboard/help',
+      onSelect: () => {
+        open.value = false
+      }
+    }]] satisfies NavigationMenuItem[][]
+  } else if (isPatient.value) {
+    // Menu para pacientes: Meu Dashboard e Configurações
+    return [[{
+      label: 'Meu Dashboard',
+      icon: 'i-lucide-house',
+      to: `/dashboard/${user.value?.id}`,
+      onSelect: () => {
+        open.value = false
+      }
+    }, {
+      label: 'Configurações',
+      icon: 'i-lucide-settings',
+      to: '/dashboard/settings',
+      onSelect: () => {
+        open.value = false
+      }
+    }], [{
+      label: 'Ajuda',
+      icon: 'i-lucide-info',
+      to: '/dashboard/help',
+      onSelect: () => {
+        open.value = false
+      }
+    }]] satisfies NavigationMenuItem[][]
   }
-}, {
-  label: 'Pacientes',
-  icon: 'i-lucide-users',
-  to: '/patients',
-  onSelect: () => {
-    open.value = false
-  }
-}], [{
-  label: 'Ajuda',
-  icon: 'i-lucide-info',
-  to: '/dashboard/help',
-  onSelect: () => {
-    open.value = false
-  }
-}]] satisfies NavigationMenuItem[][]
+
+  return [[]] satisfies NavigationMenuItem[][]
+})
 
 const groups = computed(() => [{
   id: 'links',
   label: 'Ir para',
-  items: links.flat()
+  items: links.value.flat()
 }])
 </script>
 

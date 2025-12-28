@@ -19,10 +19,10 @@
     "@unovis/vue": "^1.6.2",
     "@vee-validate/nuxt": "4.15.1",
     "@vee-validate/zod": "^4.15.1",
-    "@vueuse/core": "^14.1.0",
+    "@vueuse/core": "^11.3.0",
     "date-fns": "^4.1.0",
     "nuxt": "^4.2.2",
-    "zod": "^4.2.1"
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.10.0",

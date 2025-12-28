@@ -2,6 +2,7 @@ export interface User {
   id: string
   name: string
   email: string
+  type: 'paciente' | 'medico'
 }
 
 export interface LoginCredentials {
@@ -41,13 +42,25 @@ export const useAuth = () => {
           ? `${API_BASE_URL}/auth/login/doctor`
           : `${API_BASE_URL}/auth/login/patient`
 
-      const response = await $fetch(endpoint, {
+      const response = await $fetch<any>(endpoint, {
         method: 'POST',
         body: {
           cpf,
           password
         }
       })
+
+      // Salva um token simples (pode ser o CPF ou CRM por enquanto)
+      // TODO: Implementar JWT no backend
+      token.value = cpf
+
+      // Salva os dados do usuário
+      user.value = {
+        id: response.cpf || response.crm,
+        name: response.name,
+        email: response.email || '',
+        type: userType
+      }
 
       return response
     } catch (error: any) {
@@ -134,12 +147,24 @@ export const useAuth = () => {
   /**
    * Verifica se o usuário está autenticado
    */
-  const isAuthenticated = computed(() => !!token.value && !!user.value)
+  const isAuthenticated = computed(() => !!token.value)
+
+  /**
+   * Verifica se o usuário é médico
+   */
+  const isDoctor = computed(() => user.value?.type === 'medico')
+
+  /**
+   * Verifica se o usuário é paciente
+   */
+  const isPatient = computed(() => user.value?.type === 'paciente')
 
   return {
     user: readonly(user),
     token: readonly(token),
     isAuthenticated,
+    isDoctor,
+    isPatient,
     login,
     register,
     logout,
