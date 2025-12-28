@@ -1,85 +1,69 @@
 <script setup lang="ts">
+import { sub } from 'date-fns'
+import type { DropdownMenuItem } from '@nuxt/ui'
+import type { Period, Range } from '~/types/dashboard'
+import { useDashboard } from '~/composables/useDashboard'
 
+definePageMeta({
+  layout: 'dashboard'
+})
 
-const runtimeConfig = useRuntimeConfig()
-const loading = ref(false)
-const connected = ref(false)
-const data = ref<any>(null)
+const { isNotificationsSlideoverOpen } = useDashboard()
 
-const connectFitbit = () => {
-  window.location.href = `${runtimeConfig.public.apiBase}/fitbit/auth`
-}
+const items = [[{
+  label: 'Novo paciente',
+  icon: 'i-lucide-user-plus',
+  to: '/patients/new'
+}, {
+  label: 'Nova consulta',
+  icon: 'i-lucide-calendar-plus',
+  to: '/dashboard/appointments/new'
+}]] satisfies DropdownMenuItem[][]
 
-const loadDashboard = async () => {
-  try {
-    loading.value = true
-    data.value = await $fetch('/fitbit/dashboard', {
-      baseURL: runtimeConfig.public.apiBase as string,
-      credentials: 'include'
-    })
-    connected.value = true
-  } catch (err) {
-    connected.value = false
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(loadDashboard)
+const range = shallowRef<Range>({
+  start: sub(new Date(), { days: 14 }),
+  end: new Date()
+})
+const period = ref<Period>('daily')
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
-    <h1 class="text-2xl font-semibold">Dashboard Fitbit</h1>
+  <UDashboardPanel id="home">
+    <template #header>
+      <UDashboardNavbar title="Dashboard" :ui="{ right: 'gap-3' }">
+        <template #leading>
+          <UDashboardSidebarCollapse />
+        </template>
 
-    <UCard v-if="!connected">
-      <div class="flex flex-col items-center gap-4">
-        <p class="text-gray-500">
-          Conecte sua conta Fitbit para visualizar seus dados de saúde.
-        </p>
+        <template #right>
+          <UTooltip text="Notificações" :shortcuts="['N']">
+            <UButton color="neutral" variant="ghost" square @click="isNotificationsSlideoverOpen = true">
+              <UChip color="error" inset>
+                <UIcon name="i-lucide-bell" class="size-5 shrink-0" />
+              </UChip>
+            </UButton>
+          </UTooltip>
 
-        <UButton icon="i-simple-icons-fitbit" size="lg" color="primary" @click="connectFitbit">
-          Conectar com Fitbit
-        </UButton>
-      </div>
-    </UCard>
+          <UDropdownMenu :items="items">
+            <UButton icon="i-lucide-plus" size="md" class="rounded-full" />
+          </UDropdownMenu>
+        </template>
+      </UDashboardNavbar>
 
-    <UCard v-else>
-      <template #header>
-        <h2 class="text-lg font-medium">Resumo</h2>
-      </template>
+      <UDashboardToolbar>
+        <template #left>
+          <!-- NOTE: The `-ms-1` class is used to align with the `DashboardSidebarCollapse` button here. -->
+          <DashboardHomeDateRangePicker v-model="range" class="-ms-1" />
 
-      <div v-if="loading">
-        <USkeleton class="h-24 w-full" />
-      </div>
+          <DashboardHomePeriodSelect v-model="period" :range="range" />
+        </template>
+      </UDashboardToolbar>
+    </template>
 
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <UCard>
-          <h3 class="font-medium mb-2">Perfil</h3>
-          <p>{{ data.profile.user.fullName }}</p>
-        </UCard>
-
-        <UCard>
-          <h3 class="font-medium mb-2">Atividade</h3>
-          <p>Passos: {{ data.activity.summary.steps }}</p>
-        </UCard>
-
-        <UCard>
-          <h3 class="font-medium mb-2">Frequência Cardíaca</h3>
-          <p>
-            Média:
-            {{ data.heartrate['activities-heart'][0].value.restingHeartRate }}
-          </p>
-        </UCard>
-
-        <UCard>
-          <h3 class="font-medium mb-2">Sono</h3>
-          <p>
-            Total:
-            {{ data.sleep.summary.totalMinutesAsleep }} minutos
-          </p>
-        </UCard>
-      </div>
-    </UCard>
-  </div>
+    <template #body>
+      <DashboardHomeStats :period="period" :range="range" />
+      <DashboardHomeChart :period="period" :range="range" />
+      <DashboardHomeActivities :period="period" :range="range" />
+    </template>
+  </UDashboardPanel>
 </template>
