@@ -1,21 +1,32 @@
 <script setup lang="ts">
+import { useForm, useField } from 'vee-validate'
+import { toTypedSchema } from '@vee-validate/zod'
+import { loginSchema } from '~/schemas/auth.schema'
+import type { TabsItem } from '@nuxt/ui/runtime/components/Tabs.vue.js'
+
 const { login } = useAuth()
 const toast = useToast()
 
-const tabs = [
-  { label: 'Paciente', value: 'paciente' },
-  { label: 'Médico', value: 'medico' }
+const tabs: TabsItem[] = [
+  { label: 'Patient', value: 'paciente' },
+  { label: 'Doctor', value: 'medico' }
 ]
 
-const state = reactive({
-  userType: 'paciente' as 'paciente' | 'medico',
-  cpf: '',
-  crm: '',
-  password: '',
-  rememberMe: false
+const { handleSubmit, errors, isSubmitting } = useForm({
+  validationSchema: toTypedSchema(loginSchema),
+  initialValues: {
+    userType: 'paciente',
+    rememberMe: false,
+    cpf: '',
+    crm: ''
+  }
 })
 
-const loading = ref(false)
+const { value: userType } = useField<'paciente' | 'medico'>('userType')
+const { value: cpf } = useField<string>('cpf')
+const { value: crm } = useField<string>('crm')
+const { value: password } = useField<string>('password')
+const { value: rememberMe } = useField<boolean>('rememberMe')
 
 const formatCPF = (event: Event) => {
   const input = event.target as HTMLInputElement
@@ -28,65 +39,25 @@ const formatCPF = (event: Event) => {
   else if (value.length > 3)
     value = value.replace(/(\d{3})(\d{1,3})/, '$1.$2')
 
-  state.cpf = value
+  cpf.value = value
 }
 
-const validateForm = () => {
-  if (state.userType === 'paciente') {
-    if (state.cpf.replace(/\D/g, '').length !== 11) {
-      toast.add({
-        title: 'CPF inválido',
-        description: 'Informe um CPF válido com 11 dígitos',
-        color: 'error',
-        icon: 'i-heroicons-exclamation-circle'
-      })
-      return false
-    }
-  }
-
-  if (state.userType === 'medico' && !state.crm.trim()) {
-    toast.add({
-      title: 'CRM obrigatório',
-      description: 'Informe seu CRM para continuar',
-      color: 'error',
-      icon: 'i-heroicons-exclamation-circle'
-    })
-    return false
-  }
-
-  if (!state.password || state.password.length < 12) {
-    toast.add({
-      title: 'Senha inválida',
-      description: 'A senha deve ter no mínimo 12 caracteres',
-      color: 'error',
-      icon: 'i-heroicons-exclamation-circle'
-    })
-    return false
-  }
-
-  return true
-}
-
-const onSubmit = async () => {
-  if (!validateForm()) return
-
-  loading.value = true
-
+const submitHandler = handleSubmit(async (values) => {
   try {
     const identifier =
-      state.userType === 'paciente'
-        ? state.cpf.replace(/\D/g, '')
-        : state.crm
+      values.userType === 'paciente'
+        ? values.cpf?.replace(/\D/g, '') || ''
+        : values.crm || ''
 
     await login(
-      state.userType,
+      values.userType,
       identifier,
-      state.password,
-      state.rememberMe
+      values.password,
+      values.rememberMe || false
     )
 
     toast.add({
-      title: 'Login realizado com sucesso',
+      title: 'Login successful',
       color: 'success',
       icon: 'i-heroicons-check-circle'
     })
@@ -94,74 +65,67 @@ const onSubmit = async () => {
     navigateTo('/dashboard')
   } catch (err: any) {
     toast.add({
-      title: 'Erro ao entrar',
-      description: err?.message || 'Credenciais inválidas',
+      title: 'Login failed',
+      description: err?.message || 'Invalid credentials',
       color: 'error',
       icon: 'i-heroicons-x-circle'
     })
-  } finally {
-    loading.value = false
   }
+})
+
+const onSubmit = async () => {
+  await submitHandler()
 }
 </script>
 
-
 <template>
   <UCard class="w-full max-w-md">
-    <!-- Header -->
     <template #header>
       <div class="text-center space-y-1">
         <h2 class="text-2xl font-semibold">Login</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400">
-          Entre com sua conta
+          Sign in to your account
         </p>
       </div>
     </template>
 
-    <!-- Tabs -->
-    <UTabs v-model="state.userType" :items="tabs" class="mb-4" />
+    <UTabs v-model="userType" :items="tabs" class="mb-4" />
 
-    <!-- Form -->
     <UForm class="space-y-4" @submit="onSubmit">
-      <!-- Transição -->
       <Transition name="fade-slide" mode="out-in">
-        <div :key="state.userType">
-          <!-- CPF -->
-          <UFormField v-if="state.userType === 'paciente'" label="CPF" required>
-            <UInput v-model="state.cpf" placeholder="000.000.000-00" size="lg" class="w-full" maxlength="14"
+        <div :key="userType">
+          <UFormField v-if="userType === 'paciente'" label="CPF" required :error="errors.cpf">
+            <UInput v-model="cpf" placeholder="000.000.000-00" size="lg" class="w-full" maxlength="14"
               @input="formatCPF" />
           </UFormField>
 
-          <!-- CRM -->
-          <UFormField v-else label="CRM" required>
-            <UInput v-model="state.crm" placeholder="Digite seu CRM" class="w-full" size="lg" />
+          <UFormField v-else label="CRM" required :error="errors.crm">
+            <UInput v-model="crm" placeholder="Enter your CRM" size="lg" class="w-full" />
           </UFormField>
         </div>
       </Transition>
 
-      <!-- Senha -->
-      <UFormField label="Senha" required>
-        <UInput v-model="state.password" type="password" placeholder="••••••••••••" class="w-full" size="lg" />
+      <UFormField label="Password" required :error="errors.password">
+        <UInput v-model="password" type="password" placeholder="••••••••••••" size="lg" class="w-full" />
       </UFormField>
 
       <div class="flex items-center justify-between">
-        <UCheckbox v-model="state.rememberMe" label="Lembrar-me" />
+        <UCheckbox v-model="rememberMe" label="Remember me" />
         <UButton variant="link" size="sm" :padded="false">
-          Esqueceu a senha?
+          Forgot password?
         </UButton>
       </div>
 
-      <UButton type="submit" block size="lg" :loading="loading">
-        Entrar
+      <UButton type="submit" block size="lg" :loading="isSubmitting" :disabled="isSubmitting">
+        Sign In
       </UButton>
     </UForm>
 
-    <!-- Footer -->
     <template #footer>
       <div class="text-center text-sm text-gray-500">
-        Não tem conta?
+        Don't have an account?
         <UButton variant="link" size="sm" :padded="false" @click="navigateTo('/auth/register')">
-          Registre-se
+          Sign up
         </UButton>
       </div>
     </template>
