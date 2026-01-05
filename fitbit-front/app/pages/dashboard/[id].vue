@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { sub } from 'date-fns'
+import { sub, startOfDay, endOfDay } from 'date-fns'
 import type { Period, Range } from '~/types/dashboard'
+import type { TimeFilter } from '~/composables/useFitbitData'
+import type { TabsItem } from '@nuxt/ui/runtime/components/Tabs.vue.js'
 import { useDashboard } from '~/composables/useDashboard'
 
 definePageMeta({
@@ -12,14 +14,18 @@ const route = useRoute()
 const router = useRouter()
 const { isNotificationsSlideoverOpen } = useDashboard()
 const { user, isPatient, isDoctor } = useAuth()
-const runtimeConfig = useRuntimeConfig()
+const {
+  isSimulationMode,
+  toggleSimulation,
+  getStepsData,
+  getHeartRateData,
+  getSleepData,
+  getCaloriesData,
+  getStats,
+  hasInsufficientData
+} = useFitbitData()
 
 const patientId = computed(() => route.params.id as string)
-
-// Validação de acesso: paciente só pode ver seu próprio dashboard
-if (isPatient.value && user.value && patientId.value !== user.value.id) {
-  navigateTo(`/dashboard/${user.value.id}`)
-}
 
 // Verifica se é visualização do médico (apenas leitura)
 const isDoctorView = computed(() => isDoctor.value && patientId.value !== user.value?.id)
@@ -28,115 +34,74 @@ const isDoctorView = computed(() => isDoctor.value && patientId.value !== user.v
 const canEditSettings = computed(() => isPatient.value && patientId.value === user.value?.id)
 
 const range = shallowRef<Range>({
-  start: sub(new Date(), { days: 14 }),
-  end: new Date()
+  start: startOfDay(sub(new Date(), { days: 6 })),
+  end: endOfDay(new Date())
 })
-const period = ref<Period>('daily')
+const period = ref<TimeFilter>('daily')
 
-interface PatientData {
-  profile: {
-    fullName: string
-    avatar?: string
-    email: string
-  }
-  steps: {
-    today: number
-    data: Array<{ date: string; value: number }>
-  }
-  heartRate: {
-    resting: number
-    data: Array<{ date: string; value: number }>
-  }
-  sleep: {
-    totalMinutes: number
-    data: Array<{ date: string; value: number }>
-  }
-  lastSync: string
-}
+// Tabs para filtro de período
+const periodTabs: TabsItem[] = [
+  { label: 'Diário', value: 'daily' },
+  { label: 'Semanal', value: 'weekly' },
+  { label: 'Mensal', value: 'monthly' }
+]
+
+// Dropdown de ações
+const actionsMenuOpen = ref(false)
+const actionsItems = computed(() => [
+  [{
+    label: isSimulationMode.value ? 'Desativar Simulação' : 'Simular Dados',
+    icon: isSimulationMode.value ? 'i-lucide-database-zap' : 'i-lucide-flask-conical',
+    click: toggleSimulation
+  }]
+])
+
+// Dados computados
+const stepsData = computed(() => getStepsData(range.value.start, range.value.end, period.value))
+const heartRateData = computed(() => getHeartRateData(range.value.start, range.value.end, period.value))
+const sleepData = computed(() => getSleepData(range.value.start, range.value.end, period.value))
+const caloriesData = computed(() => getCaloriesData(range.value.start, range.value.end, period.value))
+
+const stats = computed(() => getStats(range.value.start, range.value.end))
 
 const loading = ref(false)
-const error = ref<string | null>(null)
-const patientData = ref<PatientData | null>(null)
+const hasData = computed(() =>
+  isSimulationMode.value && (
+    stepsData.value.length > 0 ||
+    heartRateData.value.length > 0 ||
+    sleepData.value.length > 0
+  )
+)
 
-const loadPatientData = async () => {
-  loading.value = true
-  error.value = null
+const showInsufficientDataWarning = computed(() =>
+  isSimulationMode.value && hasInsufficientData(range.value.start, range.value.end, period.value)
+)
 
-  try {
-    // TODO: Substituir por chamada real à API
-    // const data = await $fetch(`/api/patients/${patientId.value}/dashboard`, {
-    //   baseURL: runtimeConfig.public.apiBase,
-    //   credentials: 'include',
-    //   query: {
-    //     startDate: range.value.start.toISOString(),
-    //     endDate: range.value.end.toISOString(),
-    //     period: period.value
-    //   }
-    // })
-
-    // Mock data para desenvolvimento
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    patientData.value = {
-      profile: {
-        fullName: 'João Silva',
-        email: 'joao@example.com',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=joao'
-      },
-      steps: {
-        today: 8543,
-        data: Array.from({ length: 14 }, (_, i) => ({
-          date: sub(new Date(), { days: 13 - i }).toISOString(),
-          value: Math.floor(Math.random() * 5000) + 5000
-        }))
-      },
-      heartRate: {
-        resting: 72,
-        data: Array.from({ length: 14 }, (_, i) => ({
-          date: sub(new Date(), { days: 13 - i }).toISOString(),
-          value: Math.floor(Math.random() * 20) + 60
-        }))
-      },
-      sleep: {
-        totalMinutes: 432,
-        data: Array.from({ length: 14 }, (_, i) => ({
-          date: sub(new Date(), { days: 13 - i }).toISOString(),
-          value: Math.floor(Math.random() * 180) + 300
-        }))
-      },
-      lastSync: new Date().toISOString()
-    }
-  } catch (err: any) {
-    error.value = err.message || 'Erro ao carregar dados do paciente'
-  } finally {
-    loading.value = false
-  }
-}
-
-const hasInsufficientData = computed(() => {
-  if (!patientData.value) return false
-  const days = Math.ceil((range.value.end.getTime() - range.value.start.getTime()) / (1000 * 60 * 60 * 24))
-  return period.value === 'monthly' && days < 28
-})
-
-watch([() => range.value, () => period.value], () => {
-  loadPatientData()
-})
-
+// Validação de acesso: paciente só pode ver seu próprio dashboard
 onMounted(() => {
-  loadPatientData()
+  if (isPatient.value && user.value && patientId.value !== user.value.id) {
+    navigateTo(`/dashboard/${user.value.id}`)
+  }
 })
 </script>
 
 <template>
   <UDashboardPanel id="patient-dashboard">
     <template #header>
-      <UDashboardNavbar :title="patientData?.profile.fullName || 'Carregando...'" :ui="{ right: 'gap-3' }">
+      <UDashboardNavbar :title="user?.fullName || 'Dashboard'" :ui="{ right: 'gap-3' }">
         <template #leading>
-          <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/dashboard" square />
+          <UButton v-if="isDoctorView" icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/dashboard"
+            square />
+          <UDashboardSidebarCollapse v-else />
         </template>
 
         <template #right>
+          <!-- Badge de modo simulação -->
+          <UBadge v-if="isSimulationMode" color="success" variant="subtle" class="mr-2">
+            <UIcon name="i-lucide-flask-conical" class="size-4 mr-1" />
+            Modo Simulação
+          </UBadge>
+
           <UTooltip text="Notificações" :shortcuts="['N']">
             <UButton color="neutral" variant="ghost" square @click="isNotificationsSlideoverOpen = true">
               <UChip color="error" inset>
@@ -145,126 +110,140 @@ onMounted(() => {
             </UButton>
           </UTooltip>
 
+          <!-- Dropdown de ações -->
+          <UDropdown :items="actionsItems" :ui="{ width: 'w-64' }">
+            <UButton icon="i-lucide-plus" color="primary" variant="soft" square />
+          </UDropdown>
+
           <!-- Botão de configurações (apenas para o próprio paciente) -->
           <UButton v-if="canEditSettings" icon="i-lucide-settings" color="neutral" variant="ghost"
-            to="/dashboard/settings">
-            Configurações
-          </UButton>
-
-          <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" @click="loadPatientData"
-            :loading="loading">
-            Atualizar
-          </UButton>
+            to="/dashboard/settings" square />
         </template>
       </UDashboardNavbar>
 
       <UDashboardToolbar>
         <template #left>
-          <!-- Badge indicando modo visualização para médico -->
-          <UBadge v-if="isDoctorView" color="info" variant="subtle" class="mr-4">
-            <UIcon name="i-lucide-eye" class="size-4 mr-1" />
-            Modo Visualização
-          </UBadge>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full">
+            <!-- Badge indicando modo visualização para médico -->
+            <UBadge v-if="isDoctorView" color="info" variant="subtle">
+              <UIcon name="i-lucide-eye" class="size-4 mr-1" />
+              Modo Visualização
+            </UBadge>
 
-          <DashboardHomeDateRangePicker v-model="range" class="-ms-1" />
-          <DashboardHomePeriodSelect v-model="period" :range="range" />
-        </template>
+            <DashboardHomeDateRangePicker v-model="range" />
 
-        <template #right>
-          <div v-if="patientData" class="text-sm text-muted">
-            Última sincronização: {{ new Date(patientData.lastSync).toLocaleString('pt-BR') }}
+            <!-- Filtro de período com tabs -->
+            <UTabs v-model="period" :items="periodTabs" />
           </div>
         </template>
       </UDashboardToolbar>
     </template>
 
     <template #body>
-      <!-- Loading State -->
-      <div v-if="loading" class="space-y-6 p-6">
-        <USkeleton class="h-32 w-full" />
-        <USkeleton class="h-96 w-full" />
-        <USkeleton class="h-96 w-full" />
-      </div>
-
-      <!-- Error State -->
-      <div v-else-if="error" class="p-6">
-        <UCard>
-          <div class="flex flex-col items-center gap-4 py-12">
-            <UIcon name="i-lucide-alert-circle" class="size-16 text-error" />
-            <div class="text-center">
-              <h3 class="text-lg font-semibold mb-2">Erro ao carregar dados</h3>
-              <p class="text-muted text-sm">{{ error }}</p>
-            </div>
-            <UButton @click="loadPatientData" icon="i-lucide-refresh-cw">
-              Tentar novamente
-            </UButton>
-          </div>
-        </UCard>
-      </div>
-
-      <!-- Empty State -->
-      <div v-else-if="!patientData" class="p-6">
+      <!-- Mensagem quando não há dados -->
+      <div v-if="!hasData" class="p-6">
         <UCard>
           <div class="flex flex-col items-center gap-4 py-12">
             <UIcon name="i-lucide-database" class="size-16 text-muted" />
             <div class="text-center">
               <h3 class="text-lg font-semibold mb-2">Nenhum dado disponível</h3>
-              <p class="text-muted text-sm">
-                Este paciente ainda não sincronizou seus dados do Fitbit.
+              <p class="text-muted text-sm mb-4">
+                <template v-if="isSimulationMode">
+                  Nenhum dado encontrado para o período selecionado.
+                </template>
+                <template v-else>
+                  Ative o modo de simulação para visualizar dados de exemplo.
+                </template>
               </p>
+              <UButton v-if="!isSimulationMode" @click="toggleSimulation" icon="i-lucide-flask-conical" color="primary">
+                Simular Dados
+              </UButton>
             </div>
           </div>
         </UCard>
       </div>
 
-      <!-- Data Insufficient Warning -->
-      <UAlert v-else-if="hasInsufficientData" color="warning" variant="subtle" icon="i-lucide-alert-triangle"
-        title="Dados insuficientes para visualização Mensal"
-        description="O período selecionado não contém dados suficientes para a visualização mensal. Por favor, selecione um período maior ou escolha a visualização diária ou semanal."
-        class="mb-6" />
-
       <!-- Dashboard Content -->
-      <div v-else class="space-y-6">
+      <div v-else class="space-y-6 p-6">
+        <!-- Alerta de dados insuficientes -->
+        <UAlert v-if="showInsufficientDataWarning" color="warning" variant="subtle" icon="i-lucide-alert-triangle"
+          title="Dados insuficientes para visualização" class="mb-4">
+          <template #description>
+            <p v-if="period === 'monthly'">
+              O período selecionado não contém dados suficientes para a visualização mensal.
+              Por favor, selecione um período maior (mínimo 28 dias) ou escolha a visualização diária ou semanal.
+            </p>
+            <p v-else-if="period === 'weekly'">
+              O período selecionado não contém dados suficientes para a visualização semanal.
+              Por favor, selecione um período maior (mínimo 7 dias) ou escolha a visualização diária.
+            </p>
+          </template>
+        </UAlert>
+
         <!-- Stats Cards -->
-        <UPageGrid class="lg:grid-cols-3 gap-4 sm:gap-6">
-          <UPageCard icon="i-lucide-footprints" title="Passos Hoje" variant="subtle" :ui="{
-            container: 'gap-y-1.5',
-            wrapper: 'items-start',
-            leading: 'p-2.5 rounded-full bg-primary/10 ring ring-inset ring-primary/25 flex-col',
-            title: 'font-normal text-muted text-xs uppercase'
-          }">
-            <span class="text-2xl font-semibold text-highlighted">
-              {{ patientData.steps.today.toLocaleString('pt-BR') }}
-            </span>
-          </UPageCard>
-
-          <UPageCard icon="i-lucide-heart-pulse" title="FC em Repouso" variant="subtle" :ui="{
-            container: 'gap-y-1.5',
-            wrapper: 'items-start',
-            leading: 'p-2.5 rounded-full bg-error/10 ring ring-inset ring-error/25 flex-col',
-            title: 'font-normal text-muted text-xs uppercase'
-          }">
-            <span class="text-2xl font-semibold text-highlighted">
-              {{ patientData.heartRate.resting }} <span class="text-sm text-muted">bpm</span>
-            </span>
-          </UPageCard>
-
-          <UPageCard icon="i-lucide-moon" title="Sono (última noite)" variant="subtle" :ui="{
-            container: 'gap-y-1.5',
-            wrapper: 'items-start',
-            leading: 'p-2.5 rounded-full bg-info/10 ring ring-inset ring-info/25 flex-col',
-            title: 'font-normal text-muted text-xs uppercase'
-          }">
-            <span class="text-2xl font-semibold text-highlighted">
-              {{ Math.floor(patientData.sleep.totalMinutes / 60) }}h {{ patientData.sleep.totalMinutes % 60 }}m
-            </span>
-          </UPageCard>
-        </UPageGrid>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <DashboardStatsCard title="Passos Totais" :value="stats.steps.total.toLocaleString('pt-BR')" subtitle="passos"
+            icon="i-lucide-footprints" color="primary" />
+          <DashboardStatsCard title="Média de Passos" :value="stats.steps.average.toLocaleString('pt-BR')"
+            subtitle="por dia" icon="i-lucide-trending-up" color="success" />
+          <DashboardStatsCard title="FC Média" :value="stats.heartRate.average" subtitle="bpm"
+            icon="i-lucide-heart-pulse" color="error" />
+          <DashboardStatsCard title="Sono Médio" :value="stats.sleep.averageHours" subtitle="horas" icon="i-lucide-moon"
+            color="info" />
+        </div>
 
         <!-- Charts -->
-        <DashboardPatientStepsChart :data="patientData.steps.data" :period="period" :range="range" />
-        <DashboardPatientHeartRateChart :data="patientData.heartRate.data" :period="period" :range="range" />
-        <DashboardPatientSleepChart :data="patientData.sleep.data" :period="period" :range="range" />
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Passos</h3>
+              <UBadge color="neutral" variant="subtle">
+                {{ stepsData.length }} registros
+              </UBadge>
+            </div>
+          </template>
+          <DashboardBarChart :data="stepsData" label="Passos" color="#3b82f6" />
+          <DashboardChartStats :data="stepsData" label="passos" />
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Frequência Cardíaca em Repouso</h3>
+              <UBadge color="neutral" variant="subtle">
+                {{ heartRateData.length }} registros
+              </UBadge>
+            </div>
+          </template>
+          <DashboardLineChart :data="heartRateData" label="BPM" color="#ef4444" />
+          <DashboardChartStats :data="heartRateData" label="bpm" />
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Sono (minutos)</h3>
+              <UBadge color="neutral" variant="subtle">
+                {{ sleepData.length }} registros
+              </UBadge>
+            </div>
+          </template>
+          <DashboardLineChart :data="sleepData" label="Minutos" color="#8b5cf6" :show-fill="true" />
+          <DashboardChartStats :data="sleepData" label="minutos" />
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Calorias</h3>
+              <UBadge color="neutral" variant="subtle">
+                {{ caloriesData.length }} registros
+              </UBadge>
+            </div>
+          </template>
+          <DashboardLineChart :data="caloriesData" label="Calorias" color="#f59e0b" />
+          <DashboardChartStats :data="caloriesData" label="kcal" />
+        </UCard>
       </div>
     </template>
   </UDashboardPanel>

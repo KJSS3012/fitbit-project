@@ -42,7 +42,8 @@ export const useAuth = () => {
           ? `${API_BASE_URL}/auth/login/doctor`
           : `${API_BASE_URL}/auth/login/patient`
 
-      const response = await $fetch<any>(endpoint, {
+      // Faz a requisição - só precisa retornar sucesso
+      await $fetch<any>(endpoint, {
         method: 'POST',
         body: {
           cpf,
@@ -50,19 +51,18 @@ export const useAuth = () => {
         }
       })
 
-      // Salva um token simples (pode ser o CPF ou CRM por enquanto)
-      // TODO: Implementar JWT no backend
+      // Se chegou aqui, o login foi bem-sucedido
+      // Cria um objeto de usuário simulado baseado nos dados do login
       token.value = cpf
 
-      // Salva os dados do usuário
       user.value = {
-        id: response.cpf || response.crm,
-        name: response.name,
-        email: response.email || '',
+        id: cpf,
+        name: `Usuário ${userType === 'medico' ? 'Médico' : 'Paciente'}`,
+        email: `${cpf}@example.com`,
         type: userType
       }
 
-      return response
+      return { success: true }
     } catch (error: any) {
       console.error('Login error:', error)
       throw new Error(error.data?.detail || 'Erro ao fazer login')
@@ -79,7 +79,8 @@ export const useAuth = () => {
         ? `${API_BASE_URL}/auth/register/doctor`
         : `${API_BASE_URL}/auth/register/patient`
 
-      const response = await $fetch<{ message: string; user: User }>(endpoint, {
+      // Faz a requisição - só precisa retornar sucesso
+      await $fetch<any>(endpoint, {
         method: 'POST',
         body: data,
         headers: {
@@ -87,7 +88,11 @@ export const useAuth = () => {
         }
       })
 
-      return response
+      // Se chegou aqui, o registro foi bem-sucedido
+      return {
+        message: 'Conta criada com sucesso',
+        success: true
+      }
     } catch (error: any) {
       console.error('Register error:', error)
       throw new Error(error.data?.detail || 'Erro ao criar conta')
@@ -126,28 +131,21 @@ export const useAuth = () => {
       return null
     }
 
-    try {
-      const response = await $fetch<User>(`${API_BASE_URL}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token.value}`
-        }
-      })
-
-      user.value = response
-      return response
-    } catch (error) {
-      console.error('Fetch user error:', error)
-      // Se o token é inválido, limpa tudo
-      token.value = null
-      user.value = null
-      return null
+    // Como estamos simulando, não precisa chamar a API
+    // O user já foi criado no login
+    if (user.value) {
+      return user.value
     }
+
+    // Se por algum motivo o user não existe mas tem token, limpa tudo
+    token.value = null
+    return null
   }
 
   /**
    * Verifica se o usuário está autenticado
    */
-  const isAuthenticated = computed(() => !!token.value)
+  const isAuthenticated = computed(() => !!token.value && !!user.value)
 
   /**
    * Verifica se o usuário é médico
