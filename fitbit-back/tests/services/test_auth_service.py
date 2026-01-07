@@ -1,5 +1,5 @@
 import pytest
-from fastapi import HTTPException
+import json
 from app.services.auth_service import create_patient, create_doctor
 from app.schemas.auth_schema import PatientCreate, DoctorCreate
 from app.services.auth_service import fake_patients_db, fake_doctors_db
@@ -8,7 +8,6 @@ from app.services.auth_service import fake_patients_db, fake_doctors_db
 def clear_fake_db():
     fake_patients_db.clear()
     fake_doctors_db.clear()
-
 
 # -------------------
 # PATIENT
@@ -22,8 +21,11 @@ def test_create_patient_success():
     )
 
     response = create_patient(patient)
-    assert response.cpf == patient.cpf
-    assert response.name == patient.name
+    data = json.loads(response.body)
+    
+    assert response.status_code == 200 or response.status_code == 201
+    assert data["cpf"] == patient.cpf
+    assert data["name"] == patient.name
 
 def test_create_patient_invalid_name():
     patient = PatientCreate(
@@ -32,10 +34,8 @@ def test_create_patient_invalid_name():
         password="Abcdefjhijk1!"
     )
 
-    with pytest.raises(HTTPException) as exc:
-        create_patient(patient)
-
-    assert exc.value.status_code == 400
+    response = create_patient(patient)
+    assert response.status_code == 400
 
 def test_create_patient_invalid_cpf():
     patient = PatientCreate(
@@ -44,10 +44,8 @@ def test_create_patient_invalid_cpf():
         password="Abcdefjhijk1!"
     )
 
-    with pytest.raises(HTTPException) as exc:
-        create_patient(patient)
-
-    assert exc.value.status_code == 400
+    response = create_patient(patient)
+    assert response.status_code == 400
 
 def test_create_patient_invalid_password():
     patient = PatientCreate(
@@ -56,10 +54,8 @@ def test_create_patient_invalid_password():
         password="abc"
     )
 
-    with pytest.raises(HTTPException) as exc:
-        create_patient(patient)
-
-    assert exc.value.status_code == 400
+    response = create_patient(patient)
+    assert response.status_code == 400
 
 def test_create_patient_duplicate_cpf():
     patient = PatientCreate(
@@ -69,11 +65,8 @@ def test_create_patient_duplicate_cpf():
     )
 
     create_patient(patient)
-
-    with pytest.raises(HTTPException) as exc:
-        create_patient(patient)
-
-    assert exc.value.status_code == 409
+    response = create_patient(patient)
+    assert response.status_code == 409
 
 
 # -------------------
@@ -89,8 +82,11 @@ def test_create_doctor_success():
     )
 
     response = create_doctor(doctor)
-    assert response.crm == doctor.crm
-    assert response.name == doctor.name
+    data = json.loads(response.body)
+
+    assert response.status_code == 200 or response.status_code == 201
+    assert data["crm"] == doctor.crm
+    assert data["name"] == doctor.name
 
 def test_create_doctor_invalid_crm():
     doctor = DoctorCreate(
@@ -100,10 +96,8 @@ def test_create_doctor_invalid_crm():
         password="Abcdefjhijk1!"
     )
 
-    with pytest.raises(HTTPException) as exc:
-        create_doctor(doctor)
-
-    assert exc.value.status_code == 400
+    response = create_doctor(doctor)
+    assert response.status_code == 400
 
 def test_create_doctor_duplicate_crm():
     doctor = DoctorCreate(
@@ -115,7 +109,5 @@ def test_create_doctor_duplicate_crm():
 
     create_doctor(doctor)
 
-    with pytest.raises(HTTPException) as exc:
-        create_doctor(doctor)
-
-    assert exc.value.status_code == 409
+    response = create_doctor(doctor)
+    assert response.status_code == 409

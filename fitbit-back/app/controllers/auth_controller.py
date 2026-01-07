@@ -1,12 +1,11 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 
 from app.schemas.auth_schema import (
     PatientCreate,
-    PatientResponse,
     PatientLogin,
     DoctorCreate,
-    DoctorResponse,
     DoctorLogin
 )
 from app.services.auth_service import (
@@ -23,37 +22,21 @@ router = APIRouter(tags=["Authentication", "Fitbit"])
 
 # --- PATIENT ROUTES ---
 
-@router.post(
-    "/register/patient",
-    response_model=PatientResponse,
-    status_code=status.HTTP_201_CREATED
-)
-def register_patient(patient: PatientCreate):
+@router.post("/register/patient")
+def register_patient(patient: PatientCreate) -> JSONResponse:
     return create_patient(patient)
 
-@router.post(
-    "/login/patient",
-    response_model=PatientResponse,
-) 
-def login_patient_route(credentials: PatientLogin):
-    patient = login_patient(credentials) 
-    return patient
+@router.post("/login/patient")
+def login_patient_route(credentials: PatientLogin) -> JSONResponse:
+    return login_patient(credentials)
 
 
 # --- DOCTOR ROUTES ---
 
-@router.post(
-    "/register/doctor",
-    response_model=DoctorResponse,
-    status_code=status.HTTP_201_CREATED
-)
-def register_doctor(doctor: DoctorCreate):
+@router.post("/register/doctor")
+def register_doctor(doctor: DoctorCreate) -> JSONResponse:
     return create_doctor(doctor)
 
-@router.post(
-    "/login/doctor",
-    response_model=DoctorResponse,
-) 
-def login_doctor_route(credentials: DoctorLogin):
-    doctor = login_doctor(credentials) 
-    return doctor
+@router.post("/login/doctor")
+def login_doctor_route(credentials: DoctorLogin) -> JSONResponse:
+    return login_doctor(credentials)
