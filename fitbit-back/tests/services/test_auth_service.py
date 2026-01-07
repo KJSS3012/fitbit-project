@@ -3,6 +3,7 @@ import json
 from app.services.auth_service import create_patient, create_doctor
 from app.schemas.auth_schema import PatientCreate, DoctorCreate
 from app.services.auth_service import fake_patients_db, fake_doctors_db
+from app.services.security import verify_password
 
 @pytest.fixture(autouse=True)
 def clear_fake_db():
@@ -68,6 +69,29 @@ def test_create_patient_duplicate_cpf():
     response = create_patient(patient)
     assert response.status_code == 409
 
+def test_patient_password_hashing():
+    # Clear mock DB
+    fake_patients_db.clear()
+
+    raw_password = "PatientPassword123!"
+
+    patient = PatientCreate(
+        cpf="52998224725",
+        name="John Doe",
+        password=raw_password
+    )
+
+    response = create_patient(patient)
+    assert response.status_code == 201
+
+    # Retrieve stored record
+    saved_patient = fake_patients_db[0]
+    saved_password = saved_patient["password"]
+
+    assert saved_password != raw_password
+    assert saved_password.startswith("$2b$")
+    assert verify_password(raw_password, saved_password) is True
+
 
 # -------------------
 # DOCTOR
@@ -111,3 +135,27 @@ def test_create_doctor_duplicate_crm():
 
     response = create_doctor(doctor)
     assert response.status_code == 409
+
+def test_doctor_password_hashing():
+    # Clear mock DB
+    fake_doctors_db.clear()
+
+    raw_password = "DoctorPassword123!"
+
+    doctor = DoctorCreate(
+        cpf="52998224725", 
+        name="Dr House",
+        crm="SP123456",
+        password=raw_password
+    )
+
+    response = create_doctor(doctor)
+    assert response.status_code == 201
+
+    # Retrieve stored record
+    saved_doctor = fake_doctors_db[0]
+    saved_password = saved_doctor["password"]
+
+    assert saved_password != raw_password
+    assert saved_password.startswith("$2b$")
+    assert verify_password(raw_password, saved_password) is True

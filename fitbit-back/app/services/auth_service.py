@@ -15,6 +15,8 @@ from app.services.auth_validators import (
     validate_name,
     validate_crm
 )
+
+from app.services.security import get_password_hash, verify_password, create_access_token
 from typing import List, Dict, Any
 
 # In-memory "tables" (Mock DB)
@@ -66,7 +68,7 @@ def create_patient(patient_in: PatientCreate) -> JSONResponse:
     patient_data = {
         "cpf": patient_in.cpf,
         "name": patient_in.name,
-        "password": patient_in.password,
+        "password": get_password_hash(patient_in.password),
     }
     fake_patients_db.append(patient_data)
 
@@ -109,22 +111,21 @@ def login_patient(credentials_in: PatientLogin) -> JSONResponse:
         )
 
     # 401 Unauthorized: Password verification
-    if patient_record.get("password") != credentials_in.password:
+    if not verify_password(credentials_in.password, patient_record.get("password")):
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={"detail": "Invalid credentials."}
         )
 
-    # Prepare Response Model
-    response_data = PatientResponse(
-        cpf=patient_record["cpf"],
-        name=patient_record["name"]
-    )
+    access_token = create_access_token(subject=patient_record["cpf"], user_type="patient")
 
     # 200 Successful Response
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content=jsonable_encoder(response_data)
+        content={
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
     )
 
 
@@ -189,7 +190,7 @@ def create_doctor(doctor_in: DoctorCreate) -> JSONResponse:
         "cpf": doctor_in.cpf,
         "name": doctor_in.name,
         "crm": doctor_in.crm,
-        "password": doctor_in.password 
+        "password": get_password_hash(doctor_in.password) 
     }
     fake_doctors_db.append(doctor_data)
     
@@ -232,22 +233,20 @@ def login_doctor(credentials_in: DoctorLogin) -> JSONResponse:
             content={"detail": "Invalid credentials."}
         )
 
-    # 401 Unauthorized: Password verification 
-    if doctor_record.get("password") != credentials_in.password:
+    # 401 Unauthorized: Password verification
+    if not verify_password(credentials_in.password, doctor_record.get("password")):
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={"detail": "Invalid credentials."}
         )
 
-    # Prepare Response Model
-    response_data = DoctorResponse(
-        cpf=doctor_record["cpf"],
-        crm=doctor_record["crm"],
-        name=doctor_record["name"]
-    )
+    access_token = create_access_token(subject=doctor_record["crm"], user_type="doctor")
 
     # 200 Successful Response
     return JSONResponse(
         status_code=status.HTTP_200_OK,
-        content=jsonable_encoder(response_data)
+        content={
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
     )
