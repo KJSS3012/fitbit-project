@@ -12,7 +12,6 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const { isNotificationsSlideoverOpen } = useDashboard()
 const { user, isPatient, isDoctor } = useAuth()
 const {
   isSimulationMode,
@@ -27,10 +26,8 @@ const {
 
 const patientId = computed(() => route.params.id as string)
 
-// Verifica se é visualização do médico (apenas leitura)
 const isDoctorView = computed(() => isDoctor.value && patientId.value !== user.value?.id)
 
-// Verifica se pode editar configurações (apenas o próprio paciente)
 const canEditSettings = computed(() => isPatient.value && patientId.value === user.value?.id)
 
 const range = shallowRef<Range>({
@@ -39,24 +36,16 @@ const range = shallowRef<Range>({
 })
 const period = ref<TimeFilter>('daily')
 
-// Tabs para filtro de período
 const periodTabs: TabsItem[] = [
   { label: 'Diário', value: 'daily' },
   { label: 'Semanal', value: 'weekly' },
   { label: 'Mensal', value: 'monthly' }
 ]
 
-// Dropdown de ações
-const actionsMenuOpen = ref(false)
-const actionsItems = computed(() => [
-  [{
-    label: isSimulationMode.value ? 'Desativar Simulação' : 'Simular Dados',
-    icon: isSimulationMode.value ? 'i-lucide-database-zap' : 'i-lucide-flask-conical',
-    click: toggleSimulation
-  }]
-])
+const handleExport = () => {
+  router.push('/dashboard/export')
+}
 
-// Dados computados
 const stepsData = computed(() => getStepsData(range.value.start, range.value.end, period.value))
 const heartRateData = computed(() => getHeartRateData(range.value.start, range.value.end, period.value))
 const sleepData = computed(() => getSleepData(range.value.start, range.value.end, period.value))
@@ -77,7 +66,6 @@ const showInsufficientDataWarning = computed(() =>
   isSimulationMode.value && hasInsufficientData(range.value.start, range.value.end, period.value)
 )
 
-// Validação de acesso: paciente só pode ver seu próprio dashboard
 onMounted(() => {
   if (isPatient.value && user.value && patientId.value !== user.value.id) {
     navigateTo(`/dashboard/${user.value.id}`)
@@ -88,7 +76,7 @@ onMounted(() => {
 <template>
   <UDashboardPanel id="patient-dashboard">
     <template #header>
-      <UDashboardNavbar :title="user?.fullName || 'Dashboard'" :ui="{ right: 'gap-3' }">
+      <UDashboardNavbar :title="user?.name || 'Dashboard'" :ui="{ right: 'gap-3' }">
         <template #leading>
           <UButton v-if="isDoctorView" icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/dashboard"
             square />
@@ -96,26 +84,25 @@ onMounted(() => {
         </template>
 
         <template #right>
-          <!-- Badge de modo simulação -->
           <UBadge v-if="isSimulationMode" color="success" variant="subtle" class="mr-2">
             <UIcon name="i-lucide-flask-conical" class="size-4 mr-1" />
             Modo Simulação
           </UBadge>
 
-          <UTooltip text="Notificações" :shortcuts="['N']">
-            <UButton color="neutral" variant="ghost" square @click="isNotificationsSlideoverOpen = true">
-              <UChip color="error" inset>
-                <UIcon name="i-lucide-bell" class="size-5 shrink-0" />
-              </UChip>
-            </UButton>
-          </UTooltip>
-
-          <!-- Dropdown de ações -->
-          <UDropdown :items="actionsItems" :ui="{ width: 'w-64' }">
+          <UPopover>
             <UButton icon="i-lucide-plus" color="primary" variant="soft" square />
-          </UDropdown>
 
-          <!-- Botão de configurações (apenas para o próprio paciente) -->
+            <template #content>
+              <div class="p-2 w-64">
+                <UButton :label="isSimulationMode ? 'Desativar Simulação' : 'Simular Dados'"
+                  :icon="isSimulationMode ? 'i-lucide-database-zap' : 'i-lucide-flask-conical'" color="neutral"
+                  variant="ghost" block class="justify-start mb-1" @click="toggleSimulation" />
+                <UButton label="Exportar Dados" icon="i-lucide-download" color="neutral" variant="ghost" block
+                  class="justify-start" @click="handleExport" />
+              </div>
+            </template>
+          </UPopover>
+
           <UButton v-if="canEditSettings" icon="i-lucide-settings" color="neutral" variant="ghost"
             to="/dashboard/settings" square />
         </template>
@@ -123,8 +110,7 @@ onMounted(() => {
 
       <UDashboardToolbar>
         <template #left>
-          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full">
-            <!-- Badge indicando modo visualização para médico -->
+          <div class="flex items-center gap-3 w-full">
             <UBadge v-if="isDoctorView" color="info" variant="subtle">
               <UIcon name="i-lucide-eye" class="size-4 mr-1" />
               Modo Visualização
@@ -132,7 +118,6 @@ onMounted(() => {
 
             <DashboardHomeDateRangePicker v-model="range" />
 
-            <!-- Filtro de período com tabs -->
             <UTabs v-model="period" :items="periodTabs" />
           </div>
         </template>
@@ -140,7 +125,6 @@ onMounted(() => {
     </template>
 
     <template #body>
-      <!-- Mensagem quando não há dados -->
       <div v-if="!hasData" class="p-6">
         <UCard>
           <div class="flex flex-col items-center gap-4 py-12">
@@ -163,9 +147,7 @@ onMounted(() => {
         </UCard>
       </div>
 
-      <!-- Dashboard Content -->
       <div v-else class="space-y-6 p-6">
-        <!-- Alerta de dados insuficientes -->
         <UAlert v-if="showInsufficientDataWarning" color="warning" variant="subtle" icon="i-lucide-alert-triangle"
           title="Dados insuficientes para visualização" class="mb-4">
           <template #description>
@@ -180,8 +162,7 @@ onMounted(() => {
           </template>
         </UAlert>
 
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <DashboardStatsCard title="Passos Totais" :value="stats.steps.total.toLocaleString('pt-BR')" subtitle="passos"
             icon="i-lucide-footprints" color="primary" />
           <DashboardStatsCard title="Média de Passos" :value="stats.steps.average.toLocaleString('pt-BR')"
@@ -192,7 +173,6 @@ onMounted(() => {
             color="info" />
         </div>
 
-        <!-- Charts -->
         <UCard>
           <template #header>
             <div class="flex items-center justify-between">

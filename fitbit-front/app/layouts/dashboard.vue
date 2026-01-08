@@ -9,7 +9,6 @@ const open = ref(false)
 // Links dinâmicos baseados no tipo de usuário
 const links = computed(() => {
   if (isDoctor.value) {
-    // Menu para médicos: Dashboard (lista de pacientes) e Pacientes
     return [[{
       label: 'Pacientes',
       icon: 'i-lucide-users',
@@ -17,16 +16,8 @@ const links = computed(() => {
       onSelect: () => {
         open.value = false
       }
-    }], [{
-      label: 'Ajuda',
-      icon: 'i-lucide-info',
-      to: '/dashboard/help',
-      onSelect: () => {
-        open.value = false
-      }
     }]] satisfies NavigationMenuItem[][]
   } else if (isPatient.value) {
-    // Menu para pacientes: Meu Dashboard e Configurações
     return [[{
       label: 'Meu Dashboard',
       icon: 'i-lucide-house',
@@ -38,13 +29,6 @@ const links = computed(() => {
       label: 'Configurações',
       icon: 'i-lucide-settings',
       to: '/dashboard/settings',
-      onSelect: () => {
-        open.value = false
-      }
-    }], [{
-      label: 'Ajuda',
-      icon: 'i-lucide-info',
-      to: '/dashboard/help',
       onSelect: () => {
         open.value = false
       }
@@ -73,8 +57,6 @@ const groups = computed(() => [{
         <UDashboardSearchButton :collapsed="collapsed" class="bg-transparent ring-default" />
 
         <UNavigationMenu :collapsed="collapsed" :items="links[0]" orientation="vertical" tooltip popover />
-
-        <UNavigationMenu :collapsed="collapsed" :items="links[1]" orientation="vertical" tooltip class="mt-auto" />
       </template>
 
       <template #footer="{ collapsed }">

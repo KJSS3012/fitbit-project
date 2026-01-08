@@ -29,11 +29,7 @@ const toCalendarDate = (date: Date) => {
   )
 }
 
-/**
- * Valida se o range selecionado é válido
- */
 const validateRange = (start: Date | null, end: Date | null): boolean => {
-  // Teste 04: Validação de campos obrigatórios
   if (!start || !end) {
     toast.add({
       title: 'Período inválido',
@@ -44,7 +40,6 @@ const validateRange = (start: Date | null, end: Date | null): boolean => {
     return false
   }
 
-  // Teste 03: Validação de data inicial maior que data final
   if (start > end) {
     toast.add({
       title: 'Período inválido',
@@ -67,7 +62,6 @@ const calendarRange = computed({
     const startDate = newValue.start ? newValue.start.toDate(getLocalTimeZone()) : null
     const endDate = newValue.end ? newValue.end.toDate(getLocalTimeZone()) : null
 
-    // Valida o range antes de aplicar
     if (validateRange(startDate, endDate)) {
       selected.value = {
         start: startDate!,
@@ -84,17 +78,13 @@ const isRangeSelected = (range: { type?: string, days?: number, months?: number,
   let startDate = currentDate.copy()
   let endDate = currentDate.copy()
 
-  // Teste 01: Filtro por dia, semana e mês atual
   if (range.type === 'today') {
-    // Mesmo dia
     startDate = currentDate
     endDate = currentDate
   } else if (range.type === 'week') {
-    // Início da semana (domingo) até hoje
     startDate = currentDate.subtract({ days: currentDate.day })
     endDate = currentDate
   } else if (range.type === 'month') {
-    // Início do mês até hoje
     startDate = currentDate.set({ day: 1 })
     endDate = currentDate
   } else if (range.days) {
@@ -116,7 +106,6 @@ const selectRange = (range: { type?: string, days?: number, months?: number, yea
   let startDate = currentDate.copy()
   let endDate = currentDate.copy()
 
-  // Teste 01: Filtro por dia, semana e mês atual
   if (range.type === 'today') {
     startDate = currentDate
     endDate = currentDate

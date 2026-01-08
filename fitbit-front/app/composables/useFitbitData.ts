@@ -10,9 +10,6 @@ export const useFitbitData = () => {
     isSimulationMode.value = !isSimulationMode.value
   }
 
-  /**
-   * Filtra dados por intervalo de datas
-   */
   const filterByDateRange = <T extends { dateTime?: string; dateOfSleep?: string }>(
     data: T[],
     startDate: Date,
@@ -27,9 +24,6 @@ export const useFitbitData = () => {
     })
   }
 
-  /**
-   * Agrupa dados por período (diário, semanal, mensal)
-   */
   const groupByPeriod = <T extends { dateTime?: string; dateOfSleep?: string; value?: string | number }>(
     data: T[],
     period: TimeFilter
@@ -176,9 +170,7 @@ export const useFitbitData = () => {
     }
   }
 
-  /**
-   * Verifica se há dados suficientes para o período selecionado
-   */
+
   const hasInsufficientData = (startDate: Date, endDate: Date, period: TimeFilter) => {
     const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
 
