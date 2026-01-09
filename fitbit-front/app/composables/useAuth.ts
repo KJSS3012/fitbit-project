@@ -28,11 +28,34 @@ export const useAuth = () => {
   const API_BASE_URL = config.public.apiBase
 
   /**
-   * Realiza o login do usuário
+   * Decodes JWT token to extract user information
+   */
+  const decodeToken = (jwt: string) => {
+    try {
+      const base64Url = jwt.split('.')[1]
+      if (!base64Url) {
+        return null
+      }
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+      return JSON.parse(jsonPayload)
+    } catch (error) {
+      console.error('Error decoding token:', error)
+      return null
+    }
+  }
+
+  /**
+   * Authenticates user and stores JWT token
    */
   const login = async (
     userType: 'paciente' | 'medico',
-    cpf: string,
+    identifier: string,
     password: string,
     rememberMe = false
   ) => {
@@ -42,27 +65,28 @@ export const useAuth = () => {
           ? `${API_BASE_URL}/auth/login/doctor`
           : `${API_BASE_URL}/auth/login/patient`
 
-      // Faz a requisição - só precisa retornar sucesso
-      await $fetch<any>(endpoint, {
+      const body = userType === 'medico'
+        ? { crm: identifier, password }
+        : { cpf: identifier, password }
+
+      const response = await $fetch<{ access_token: string; token_type: string }>(endpoint, {
         method: 'POST',
-        body: {
-          cpf,
-          password
-        }
+        body
       })
 
-      // Se chegou aqui, o login foi bem-sucedido
-      // Cria um objeto de usuário simulado baseado nos dados do login
-      token.value = cpf
+      token.value = response.access_token
+      const decoded = decodeToken(response.access_token)
 
-      user.value = {
-        id: cpf,
-        name: `Usuário ${userType === 'medico' ? 'Médico' : 'Paciente'}`,
-        email: `${cpf}@example.com`,
-        type: userType
+      if (decoded) {
+        user.value = {
+          id: decoded.sub,
+          name: '',
+          email: `${decoded.sub}@example.com`,
+          type: userType
+        }
       }
 
-      return { success: true }
+      return response
     } catch (error: any) {
       console.error('Login error:', error)
       throw new Error(error.data?.detail || 'Erro ao fazer login')
@@ -70,29 +94,25 @@ export const useAuth = () => {
   }
 
   /**
-   * Registra um novo usuário
+   * Registers a new user
    */
   const register = async (data: RegisterData) => {
     try {
-      // Define o endpoint baseado no tipo de usuário
       const endpoint = data.user_type === 'medico'
         ? `${API_BASE_URL}/auth/register/doctor`
         : `${API_BASE_URL}/auth/register/patient`
 
-      // Faz a requisição - só precisa retornar sucesso
-      await $fetch<any>(endpoint, {
+      const { user_type, ...bodyData } = data
+
+      const response = await $fetch<any>(endpoint, {
         method: 'POST',
-        body: data,
+        body: bodyData,
         headers: {
           'Content-Type': 'application/json'
         }
       })
 
-      // Se chegou aqui, o registro foi bem-sucedido
-      return {
-        message: 'Conta criada com sucesso',
-        success: true
-      }
+      return response
     } catch (error: any) {
       console.error('Register error:', error)
       throw new Error(error.data?.detail || 'Erro ao criar conta')
@@ -100,23 +120,12 @@ export const useAuth = () => {
   }
 
   /**
-   * Faz logout do usuário
+   * Logs out user and clears authentication state
    */
   const logout = async () => {
     try {
-      // Opcional: chamar endpoint de logout no backend
-      // await $fetch(`${API_BASE_URL}/auth/logout`, {
-      //   method: 'POST',
-      //   headers: {
-      //     Authorization: `Bearer ${token.value}`
-      //   }
-      // })
-
-      // Limpa o token e o estado do usuário
       token.value = null
       user.value = null
-
-      // Redireciona para login
       await navigateTo('/auth/login')
     } catch (error) {
       console.error('Logout error:', error)
@@ -124,37 +133,31 @@ export const useAuth = () => {
   }
 
   /**
-   * Busca os dados do usuário autenticado
+   * Fetches authenticated user data from token
    */
   const fetchUser = async () => {
     if (!token.value) {
       return null
     }
 
-    // Como estamos simulando, não precisa chamar a API
-    // O user já foi criado no login
-    if (user.value) {
+    const decoded = decodeToken(token.value)
+
+    if (decoded) {
+      user.value = {
+        id: decoded.sub,
+        name: '',
+        email: `${decoded.sub}@example.com`,
+        type: decoded.type === 'patient' ? 'paciente' : 'medico'
+      }
       return user.value
     }
 
-    // Se por algum motivo o user não existe mas tem token, limpa tudo
     token.value = null
     return null
   }
 
-  /**
-   * Verifica se o usuário está autenticado
-   */
-  const isAuthenticated = computed(() => !!token.value && !!user.value)
-
-  /**
-   * Verifica se o usuário é médico
-   */
+  const isAuthenticated = computed(() => !!token.value)
   const isDoctor = computed(() => user.value?.type === 'medico')
-
-  /**
-   * Verifica se o usuário é paciente
-   */
   const isPatient = computed(() => user.value?.type === 'paciente')
 
   return {

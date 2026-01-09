@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { register as registerAPI } from '~/services/api'
 import { useForm, useField } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { registerSchema } from '~/schemas/auth.schema'
 import type { TabsItem } from '@nuxt/ui/runtime/components/Tabs.vue.js'
 
+const { register } = useAuth()
 const toast = useToast()
 
 const tabs: TabsItem[] = [
@@ -45,10 +45,10 @@ const formatCPF = (event: Event) => {
 
 const submitHandler = handleSubmit(async (values) => {
   try {
-    await registerAPI({
+    await register({
       user_type: values.userType,
       name: values.name,
-      cpf: values.cpf,
+      cpf: values.cpf.replace(/\D/g, ''),
       password: values.password,
       crm: values.userType === 'medico' ? values.crm : undefined
     })
