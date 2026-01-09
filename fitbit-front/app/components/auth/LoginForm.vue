@@ -6,6 +6,7 @@ import type { TabsItem } from '@nuxt/ui/runtime/components/Tabs.vue.js'
 
 const { login } = useAuth()
 const toast = useToast()
+const { user, isPatient } = useAuth()
 
 const tabs: TabsItem[] = [
   { label: 'Patient', value: 'paciente' },
@@ -62,7 +63,12 @@ const submitHandler = handleSubmit(async (values) => {
       icon: 'i-heroicons-check-circle'
     })
 
-    navigateTo('/dashboard')
+    // Redireciona baseado no tipo de usuário
+    if (isPatient.value && user.value) {
+      await navigateTo(`/dashboard/${user.value.id}`)
+    } else {
+      await navigateTo('/dashboard')
+    }
   } catch (err: any) {
     toast.add({
       title: 'Login failed',
