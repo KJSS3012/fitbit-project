@@ -1,4 +1,6 @@
-from fastapi import status, HTTPException
+from fastapi import status
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from app.schemas.auth_schema import (
     PatientCreate,
     PatientResponse,
@@ -13,8 +15,9 @@ from app.services.auth_validators import (
     validate_name,
     validate_crm
 )
-from typing import List, Dict, Any
 
+from app.services.security import get_password_hash, verify_password, create_access_token
+from typing import List, Dict, Any
 
 # In-memory "tables" (Mock DB)
 fake_patients_db: List[Dict[str, Any]] = []
@@ -23,7 +26,7 @@ fake_doctors_db: List[Dict[str, Any]] = []
 
 # --- PATIENT LOGIC ---
 
-def create_patient(patient_in: PatientCreate) -> PatientResponse:
+def create_patient(patient_in: PatientCreate) -> JSONResponse:
 
     # Clean input data
     patient_in.name = patient_in.name.upper().strip()
@@ -33,48 +36,56 @@ def create_patient(patient_in: PatientCreate) -> PatientResponse:
     # 400 Bad Request: Name validation
     name_error = validate_name(patient_in.name)
     if name_error:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=name_error
+            content={"detail": name_error}
         )
 
     # 400 Bad Request: CPF validation
     cpf_error = validate_cpf(patient_in.cpf)
     if cpf_error:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=cpf_error
+            content={"detail": cpf_error}
         )
 
     # 400 Bad Request: Password validation
     password_error = check_password_complexity(patient_in.password)
     if password_error:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=password_error
+            content={"detail": password_error}
         )
 
     # 409 Conflict: CPF duplication
     if any(p.get("cpf") == patient_in.cpf for p in fake_patients_db):
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
-            detail="CPF already registered."
+            content={"detail": "CPF already registered."}
         )
 
-    # 201 Successful Response: Patient created
+    # Persist Data
     patient_data = {
         "cpf": patient_in.cpf,
         "name": patient_in.name,
-        "password": patient_in.password,
+        "password": get_password_hash(patient_in.password),
     }
     fake_patients_db.append(patient_data)
 
-    return PatientResponse(
+    # Prepare Response Model
+    response_data = PatientResponse(
         cpf=patient_data["cpf"],
         name=patient_data["name"]
     )
 
-def login_patient(credentials_in: PatientLogin) -> PatientResponse:
+    # 201 Successful Response
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content=jsonable_encoder(response_data)
+    )
+
+
+def login_patient(credentials_in: PatientLogin) -> JSONResponse:
     
     # Clean input data
     credentials_in.cpf = credentials_in.cpf.strip()
@@ -83,9 +94,9 @@ def login_patient(credentials_in: PatientLogin) -> PatientResponse:
     # 400 Bad Request: CPF validation
     cpf_error = validate_cpf(credentials_in.cpf)
     if cpf_error:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=cpf_error
+            content={"detail": cpf_error}
         )
     
     # 401 Unauthorized: Find user by CPF
@@ -94,27 +105,33 @@ def login_patient(credentials_in: PatientLogin) -> PatientResponse:
         None
     )
     if not patient_record:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials."
+            content={"detail": "Invalid credentials."}
         )
 
     # 401 Unauthorized: Password verification
-    if patient_record.get("password") != credentials_in.password:
-        raise HTTPException(
+    if not verify_password(credentials_in.password, patient_record.get("password")):
+        return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials."
+            content={"detail": "Invalid credentials."}
         )
 
-    # 200 Successful Response: Authentication successful
-    return PatientResponse(
-        cpf=patient_record["cpf"],
-        name=patient_record["name"]
+    access_token = create_access_token(subject=patient_record["cpf"], user_type="patient")
+
+    # 200 Successful Response
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
     )
+
 
 # --- DOCTOR LOGIC ---
 
-def create_doctor(doctor_in: DoctorCreate) -> DoctorResponse:
+def create_doctor(doctor_in: DoctorCreate) -> JSONResponse:
     
     # Clean input data
     doctor_in.name = doctor_in.name.upper().strip()
@@ -125,65 +142,73 @@ def create_doctor(doctor_in: DoctorCreate) -> DoctorResponse:
     # 400 Bad Request: Name validation
     name_error = validate_name(doctor_in.name)
     if name_error:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=name_error
+            content={"detail": name_error}
         )
 
     # 400 Bad Request: CPF validation
     cpf_error = validate_cpf(doctor_in.cpf)
     if cpf_error:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=cpf_error
+            content={"detail": cpf_error}
         )
 
     # 400 Bad Request: CRM validation
     crm_error = validate_crm(doctor_in.crm)
     if crm_error:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=crm_error
+            content={"detail": crm_error}
         )
 
     # 400 Bad Request: Password validation
     password_error = check_password_complexity(doctor_in.password)
     if password_error:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=password_error
+            content={"detail": password_error}
         )
      
     # 409 Conflict: CPF duplication
     if any(p.get("cpf") == doctor_in.cpf for p in fake_doctors_db):
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
-            detail="CPF already registered."
+            content={"detail": "CPF already registered."}
         )
     
     # 409 Conflict: CRM duplication
     if any(d.get("crm") == doctor_in.crm for d in fake_doctors_db):
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
-            detail="CRM already registered."
+            content={"detail": "CRM already registered."}
         )
         
-    # 201 Successful Response: Doctor created
+    # Persist Data
     doctor_data = {
         "cpf": doctor_in.cpf,
         "name": doctor_in.name,
         "crm": doctor_in.crm,
-        "password": doctor_in.password 
+        "password": get_password_hash(doctor_in.password) 
     }
     fake_doctors_db.append(doctor_data)
     
-    return DoctorResponse(
+    # Prepare Response Model
+    response_data = DoctorResponse(
         cpf=doctor_data["cpf"], 
         name=doctor_data["name"], 
         crm=doctor_data["crm"]
     )
 
-def login_doctor(credentials_in: DoctorLogin) -> DoctorResponse:
+    # 201 Successful Response
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content=jsonable_encoder(response_data)
+    )
+
+
+def login_doctor(credentials_in: DoctorLogin) -> JSONResponse:
     
     # Clean input data
     credentials_in.crm = credentials_in.crm.strip()
@@ -192,9 +217,9 @@ def login_doctor(credentials_in: DoctorLogin) -> DoctorResponse:
     # 400 Bad Request: CRM validation
     crm_error = validate_crm(credentials_in.crm)
     if crm_error:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=crm_error
+            content={"detail": crm_error}
         )
 
     # 401 Unauthorized: Find user by CRM
@@ -203,21 +228,25 @@ def login_doctor(credentials_in: DoctorLogin) -> DoctorResponse:
         None
     )
     if not doctor_record:
-        raise HTTPException(
+        return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials."
+            content={"detail": "Invalid credentials."}
         )
 
-    # 401 Unauthorized: Password verification 
-    if doctor_record.get("password") != credentials_in.password:
-        raise HTTPException(
+    # 401 Unauthorized: Password verification
+    if not verify_password(credentials_in.password, doctor_record.get("password")):
+        return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials."
+            content={"detail": "Invalid credentials."}
         )
 
-    # 200 Successful Response: Authentication successful
-    return DoctorResponse(
-        cpf=doctor_record["cpf"],
-        crm=doctor_record["crm"],
-        name=doctor_record["name"]
+    access_token = create_access_token(subject=doctor_record["crm"], user_type="doctor")
+
+    # 200 Successful Response
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "access_token": access_token,
+            "token_type": "bearer"
+        }
     )
