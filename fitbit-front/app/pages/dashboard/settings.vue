@@ -7,9 +7,11 @@ definePageMeta({
 })
 
 const { user, isPatient } = useAuth()
+const route = useRoute()
 
-if (!isPatient.value) {
-  navigateTo('/dashboard')
+// Only redirect if not patient AND not already on settings page
+if (!isPatient.value && !route.path.startsWith('/dashboard/settings')) {
+  navigateTo('/dashboard/main', { replace: true })
 }
 
 const links = [[{
@@ -37,7 +39,7 @@ const links = [[{
     <template #header>
       <UDashboardNavbar title="Configurações">
         <template #leading>
-          <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" :to="`/dashboard/${user?.id}`" square />
+          <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/dashboard/main" square />
         </template>
       </UDashboardNavbar>
 

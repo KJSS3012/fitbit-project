@@ -8,37 +8,37 @@ import { crmSchema } from './crm.schema'
 export const registerSchema = z.object({
   userType: z.enum(['paciente', 'medico']),
   name: z
-    .string({ message: 'Full name is required' })
-    .min(1, 'Full name is required')
-    .min(3, 'Full name must be at least 3 characters'),
+    .string({ message: 'Nome completo é obrigatório' })
+    .min(1, 'Nome completo é obrigatório')
+    .min(3, 'Nome deve ter pelo menos 3 caracteres'),
   cpf: cpfSchema,
 
   crm: z.string().optional(),
 
   password: z
-    .string({ message: 'Password is required' })
-    .min(1, 'Password is required')
-    .min(12, 'Password must be at least 12 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+    .string({ message: 'Senha é obrigatória' })
+    .min(1, 'Senha é obrigatória')
+    .min(12, 'Senha deve ter pelo menos 12 caracteres')
+    .regex(/[A-Z]/, 'Senha deve conter pelo menos uma letra maiúscula')
+    .regex(/[a-z]/, 'Senha deve conter pelo menos uma letra minúscula')
+    .regex(/[0-9]/, 'Senha deve conter pelo menos um número')
+    .regex(/[^A-Za-z0-9]/, 'Senha deve conter pelo menos um caractere especial'),
 
   confirmPassword: z
-    .string({ message: 'Please confirm your password' })
-    .min(1, 'Please confirm your password'),
+    .string({ message: 'Por favor, confirme sua senha' })
+    .min(1, 'Por favor, confirme sua senha'),
 
   acceptTerms: z
     .boolean()
     .refine(val => val === true, {
-      message: 'You must accept the terms of use'
+      message: 'Você deve aceitar os termos de uso'
     })
 }).superRefine((data, ctx) => {
   if (data.userType === 'medico') {
     if (!data.crm || data.crm.trim() === '') {
       ctx.addIssue({
         path: ['crm'],
-        message: 'CRM is required for doctors',
+        message: 'CRM é obrigatório para médicos',
         code: z.ZodIssueCode.custom
       })
     } else {
@@ -47,7 +47,7 @@ export const registerSchema = z.object({
       if (!/^[A-Z]{2}\d{6}$/.test(crmTrimmed)) {
         ctx.addIssue({
           path: ['crm'],
-          message: 'CRM must be exactly 8 characters (2 letters for state and 6 digits, e.g., SP123456)',
+          message: 'CRM deve ter exatamente 8 caracteres (2 letras do estado e 6 dígitos, ex: SP123456)',
           code: z.ZodIssueCode.custom
         })
       }
@@ -57,7 +57,7 @@ export const registerSchema = z.object({
   if (data.password !== data.confirmPassword) {
     ctx.addIssue({
       path: ['confirmPassword'],
-      message: 'Passwords do not match',
+      message: 'As senhas não coincidem',
       code: z.ZodIssueCode.custom
     })
   }
@@ -71,15 +71,15 @@ export const loginSchema = z.object({
   cpf: z.string().optional(),
   crm: z.string().optional(),
   password: z
-    .string({ message: 'Password is required' })
-    .min(1, 'Password is required'),
+    .string({ message: 'Senha é obrigatória' })
+    .min(1, 'Senha é obrigatória'),
   rememberMe: z.boolean().optional()
 }).superRefine((data, ctx) => {
   if (data.userType === 'paciente') {
     if (!data.cpf) {
       ctx.addIssue({
         path: ['cpf'],
-        message: 'CPF is required',
+        message: 'CPF é obrigatório',
         code: z.ZodIssueCode.custom
       })
     } else {
@@ -88,7 +88,7 @@ export const loginSchema = z.object({
       if (!cpfResult.success) {
         ctx.addIssue({
           path: ['cpf'],
-          message: 'Invalid CPF',
+          message: 'CPF inválido',
           code: z.ZodIssueCode.custom
         })
       }
@@ -99,7 +99,7 @@ export const loginSchema = z.object({
     if (!data.crm) {
       ctx.addIssue({
         path: ['crm'],
-        message: 'CRM is required',
+        message: 'CRM é obrigatório',
         code: z.ZodIssueCode.custom
       })
     } else {
@@ -107,7 +107,7 @@ export const loginSchema = z.object({
       if (!crmResult.success) {
         ctx.addIssue({
           path: ['crm'],
-          message: 'Invalid CRM',
+          message: 'CRM inválido',
           code: z.ZodIssueCode.custom
         })
       }

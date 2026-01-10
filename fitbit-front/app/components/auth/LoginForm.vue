@@ -9,8 +9,8 @@ const toast = useToast()
 const { user, isPatient } = useAuth()
 
 const tabs: TabsItem[] = [
-  { label: 'Patient', value: 'paciente' },
-  { label: 'Doctor', value: 'medico' }
+  { label: 'Paciente', value: 'paciente' },
+  { label: 'Médico', value: 'medico' }
 ]
 
 const { handleSubmit, errors, isSubmitting } = useForm({
@@ -58,20 +58,21 @@ const submitHandler = handleSubmit(async (values) => {
     )
 
     toast.add({
-      title: 'Login successful',
+      title: 'Login realizado com sucesso',
       color: 'success',
       icon: 'i-heroicons-check-circle'
     })
 
-    if (isPatient.value && user.value) {
-      await navigateTo(`/dashboard/${user.value.id}`)
+    // Redirect based on user type (no ID in URL)
+    if (isPatient.value) {
+      await navigateTo('/dashboard/main')
     } else {
-      await navigateTo('/dashboard')
+      await navigateTo('/patients')
     }
   } catch (err: any) {
     toast.add({
-      title: 'Login failed',
-      description: err?.message || 'Invalid credentials',
+      title: 'Falha no login',
+      description: err?.message || 'Credenciais inválidas',
       color: 'error',
       icon: 'i-heroicons-x-circle'
     })
@@ -87,9 +88,9 @@ const onSubmit = async () => {
   <UCard class="w-full max-w-md">
     <template #header>
       <div class="text-center space-y-1">
-        <h2 class="text-2xl font-semibold">Login</h2>
+        <h2 class="text-2xl font-semibold">Entrar</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400">
-          Sign in to your account
+          Faça login na sua conta
         </p>
       </div>
     </template>
@@ -105,32 +106,29 @@ const onSubmit = async () => {
           </UFormField>
 
           <UFormField v-else label="CRM" required :error="errors.crm">
-            <UInput v-model="crm" placeholder="Enter your CRM" size="lg" class="w-full" />
+            <UInput v-model="crm" placeholder="Digite seu CRM" size="lg" class="w-full" />
           </UFormField>
         </div>
       </Transition>
 
-      <UFormField label="Password" required :error="errors.password">
+      <UFormField label="Senha" required :error="errors.password">
         <UInput v-model="password" type="password" placeholder="••••••••••••" size="lg" class="w-full" />
       </UFormField>
 
-      <div class="flex items-center justify-between">
-        <UCheckbox v-model="rememberMe" label="Remember me" />
-        <UButton variant="link" size="sm" :padded="false">
-          Forgot password?
-        </UButton>
+      <div class="flex items-center">
+        <UCheckbox v-model="rememberMe" label="Lembrar-me" />
       </div>
 
       <UButton type="submit" block size="lg" :loading="isSubmitting" :disabled="isSubmitting">
-        Sign In
+        Entrar
       </UButton>
     </UForm>
 
     <template #footer>
       <div class="text-center text-sm text-gray-500">
-        Don't have an account?
+        Não tem uma conta?
         <UButton variant="link" size="sm" :padded="false" @click="navigateTo('/auth/register')">
-          Sign up
+          Cadastre-se
         </UButton>
       </div>
     </template>

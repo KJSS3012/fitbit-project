@@ -20,7 +20,7 @@ const links = computed(() => {
     return [[{
       label: 'Meu Dashboard',
       icon: 'i-lucide-house',
-      to: `/dashboard/${user.value?.id}`,
+      to: '/dashboard/main',
       onSelect: () => {
         open.value = false
       }

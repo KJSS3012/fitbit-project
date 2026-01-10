@@ -51,7 +51,7 @@ const handleExport = async () => {
   })
 
   if (!isExporting.value) {
-    router.push(`/dashboard/${user.value?.id}`)
+    router.push('/dashboard/main')
   }
 }
 

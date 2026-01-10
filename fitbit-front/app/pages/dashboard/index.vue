@@ -4,13 +4,16 @@ definePageMeta({
   middleware: 'auth'
 })
 
-const { user, isPatient, isDoctor } = useAuth()
+const { user, isPatient, isDoctor, isLoading } = useAuth()
 
-onMounted(() => {
-  if (isPatient.value && user.value) {
-    navigateTo(`/dashboard/${user.value.id}`)
+// Wait for auth to load before redirecting
+watchEffect(() => {
+  if (isLoading.value) return
+
+  if (isPatient.value) {
+    navigateTo('/dashboard/main', { replace: true })
   } else if (isDoctor.value) {
-    navigateTo('/patients')
+    navigateTo('/patients', { replace: true })
   }
 })
 </script>
@@ -21,7 +24,7 @@ onMounted(() => {
       <div class="flex items-center justify-center min-h-screen">
         <div class="text-center">
           <UIcon name="i-lucide-loader-2" class="size-12 animate-spin text-primary mx-auto mb-4" />
-          <p class="text-muted">Redirecionando...</p>
+          <p class="text-muted">Carregando...</p>
         </div>
       </div>
     </template>
