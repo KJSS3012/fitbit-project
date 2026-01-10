@@ -1,26 +1,30 @@
-from pydantic import BaseModel
-from typing import List
+from pydantic import BaseModel, Field
+from typing import List, Dict
 
 # -----------------------------------
 # RESPONSE MODELS (OUTPUT)
 # -----------------------------------
 
-# Chart axes (Frontend receives ready-to-use arrays)
-class ChartData(BaseModel):
-    dates: List[str]
-    steps: List[int]
-    bpm: List[float]
-    sleep: List[float]
+class HeartRateValue(BaseModel):
+    restingHeartRate: int
 
-# Summary cards (Averages displayed at the top of the screen)
-class DashboardSummary(BaseModel):
-    avg_steps: int
-    avg_bpm: int
-    avg_sleep: float
-    days_analyzed: int
+class HeartRateRecord(BaseModel):
+    dateTime: str
+    value: HeartRateValue
 
-# The main object returned by the API
+class StepRecord(BaseModel):
+    dateTime: str
+    value: str
+
+class SleepRecord(BaseModel):
+    dateOfSleep: str
+    minutesAsleep: int
+
 class DashboardResponse(BaseModel):
-    period: str
-    summary: DashboardSummary
-    charts: ChartData
+    activities_steps: List[StepRecord] = Field(..., alias="activities-steps")
+    activities_heart: List[HeartRateRecord] = Field(..., alias="activities-heart")
+    sleep: List[SleepRecord]
+
+    class Config:
+        populate_by_name = True
+        serialization_alias_kind = "alias"

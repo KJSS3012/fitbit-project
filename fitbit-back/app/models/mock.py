@@ -27,7 +27,11 @@ fake_database = [
     {"id": 18, "cpf": "22233344455", "date": "2023-07-12", "steps": 10000, "sleep_hours": 6.0, "calories": 2400, "bpm": 75},
 
     {"id": 19, "cpf": "44455566677", "date": "2023-06-05", "steps": 0, "sleep_hours": 10.0, "calories": 1600, "bpm": 60},
-    {"id": 20, "cpf": "44455566677", "date": "2023-06-06", "steps": 3200, "sleep_hours": 5.5, "calories": 1300, "bpm": 85}
+    {"id": 20, "cpf": "44455566677", "date": "2023-06-06", "steps": 3200, "sleep_hours": 5.5, "calories": 1300, "bpm": 85},
+
+    {"id": 21, "cpf": "60440964083", "date": "2023-10-21", "steps": 9000, "sleep_hours": 7.5, "calories": 2100, "bpm": 72},
+    {"id": 22, "cpf": "60440964083", "date": "2023-10-24", "steps": 10000, "sleep_hours": 6.0, "calories": 2400, "bpm": 78},
+    {"id": 23, "cpf": "60440964083", "date": "2023-10-26", "steps": 7000, "sleep_hours": 8.0, "calories": 1800, "bpm": 68}
 ]
 
 class FitbitModel:
