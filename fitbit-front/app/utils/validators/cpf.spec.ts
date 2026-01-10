@@ -93,9 +93,8 @@ describe('isValidCPF', () => {
     })
 
     it('should strip special characters and validate remaining digits', () => {
-      // O validador remove todos não-dígitos, então isso é válido se os dígitos forem corretos
-      expect(isValidCPF('111@444#777$35')).toBe(true) // vira 11144477735
-      expect(isValidCPF('111!444!777!35')).toBe(true) // vira 11144477735
+      expect(isValidCPF('111@444#777$35')).toBe(true)
+      expect(isValidCPF('111!444!777!35')).toBe(true)
     })
   })
 })

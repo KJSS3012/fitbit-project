@@ -35,7 +35,9 @@ const range = computed<Range>(() => ({
   end: endOfDay(new Date(currentDateRange.value.end))
 }))
 
-// Mapeia o período do filtro para o TimeFilter usado nos gráficos
+/**
+ * Maps filter period to TimeFilter format used by chart components
+ */
 const period = computed<TimeFilter>(() => {
   if (selectedPeriod.value === 'day') return 'daily'
   if (selectedPeriod.value === 'week') return 'weekly'
@@ -66,7 +68,6 @@ const showInsufficientDataWarning = computed(() =>
   isSimulationMode.value && hasInsufficientData(range.value.start, range.value.end, period.value)
 )
 
-// Ativa simulação automaticamente para demonstração (médicos vendo pacientes ou pacientes vendo próprio dashboard)
 if (!isSimulationMode.value) {
   toggleSimulation()
 }

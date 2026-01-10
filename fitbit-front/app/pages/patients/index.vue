@@ -19,7 +19,6 @@ interface Patient {
 const searchQuery = ref('')
 const isLoading = ref(false)
 
-// Paciente de exemplo para demonstração
 const patients = ref<Patient[]>([
   {
     id: 'patient-demo-001',

@@ -8,7 +8,6 @@ definePageMeta({
 
 const { user, isPatient } = useAuth()
 
-// Apenas pacientes podem acessar configurações
 if (!isPatient.value) {
   navigateTo('/dashboard')
 }

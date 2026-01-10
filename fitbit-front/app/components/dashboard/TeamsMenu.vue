@@ -7,7 +7,6 @@ defineProps<{
 
 const { user, isDoctor } = useAuth()
 
-// Apenas médicos veem o menu de unidades/clínicas
 const teams = computed(() => {
   if (!isDoctor.value) {
     return [{
@@ -50,7 +49,7 @@ const items = computed<DropdownMenuItem[][]>(() => {
     }
   }))]
 
-  // Apenas médicos podem criar/gerenciar unidades
+
   if (isDoctor.value) {
     menuItems.push([{
       label: 'Criar unidade',

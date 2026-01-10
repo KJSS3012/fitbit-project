@@ -40,7 +40,6 @@ const disconnectFitbit = async () => {
   }
 }
 
-// Estado de compartilhamento com médico
 const sharingEnabled = ref(true)
 
 const toggleSharing = async () => {

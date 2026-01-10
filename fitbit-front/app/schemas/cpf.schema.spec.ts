@@ -103,9 +103,8 @@ describe('cpfSchema', () => {
     })
 
     it('should strip special characters and validate remaining digits', () => {
-      // O schema remove todos não-dígitos antes de validar
       const result = cpfSchema.safeParse('111@444#777$35')
-      expect(result.success).toBe(true) // vira 11144477735
+      expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data).toBe('11144477735')
       }

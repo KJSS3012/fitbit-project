@@ -170,16 +170,17 @@ export const useFitbitData = () => {
     }
   }
 
-
+  /**
+   * Checks if the date range has insufficient data for the selected time filter.
+   * Monthly view requires at least 28 days, weekly view requires at least 7 days.
+   */
   const hasInsufficientData = (startDate: Date, endDate: Date, period: TimeFilter) => {
     const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
 
-    // Para visualização mensal, precisa de pelo menos 28 dias
     if (period === 'monthly' && daysDiff < 28) {
       return true
     }
 
-    // Para visualização semanal, precisa de pelo menos 7 dias
     if (period === 'weekly' && daysDiff < 7) {
       return true
     }

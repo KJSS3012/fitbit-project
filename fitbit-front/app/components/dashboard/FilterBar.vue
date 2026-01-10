@@ -31,8 +31,10 @@ const periodTabs = computed<TabsItem[]>(() => [
   }
 ])
 
+/**
+ * Opens the custom date range dialog and pre-fills with saved values if available
+ */
 const openFilterDialog = () => {
-  // Se já tem um range customizado salvo, preenche os campos
   if (customDateRange.value) {
     startDate.value = customDateRange.value.start
     endDate.value = customDateRange.value.end
@@ -40,11 +42,12 @@ const openFilterDialog = () => {
   showCustomDialog.value = true
 }
 
+/**
+ * Handles tab change. Prevents selecting 'custom' tab without saved range.
+ */
 const onPeriodTabChange = (value: string | number) => {
   const next = value as FilterPeriod
 
-  // Se ainda não existe filtro customizado salvo, não permite selecionar a tab.
-  // O usuário deve abrir o modal via botão de filtro.
   if (next === 'custom' && !customDateRange.value) {
     activePeriod.value = lastNonCustomPeriod.value
     return

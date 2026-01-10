@@ -5,7 +5,6 @@ import { useDashboard } from '~/composables/useDashboard'
 
 const { isNotificationsSlideoverOpen } = useDashboard()
 
-// Mock notifications - você pode substituir por uma chamada real à API
 const notifications = ref<Notification[]>([
   {
     id: 1,

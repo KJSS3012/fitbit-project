@@ -6,7 +6,6 @@ const { user, isDoctor, isPatient } = useAuth()
 
 const open = ref(false)
 
-// Links dinâmicos baseados no tipo de usuário
 const links = computed(() => {
   if (isDoctor.value) {
     return [[{
