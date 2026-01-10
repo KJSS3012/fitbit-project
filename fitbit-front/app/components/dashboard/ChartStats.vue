@@ -22,7 +22,6 @@ const stats = computed(() => {
   const min = Math.min(...values)
   const max = Math.max(...values)
 
-  // Pico é o valor mais alto registrado
   const peakIndex = values.indexOf(max)
 
   return {

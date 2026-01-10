@@ -1,15 +1,21 @@
-import { createSharedComposable } from '@vueuse/core'
+import { createSharedComposable, useDebounceFn } from '@vueuse/core'
+
+type FilterPeriod = 'day' | 'week' | 'month' | 'custom'
+
+interface DateRange {
+  start: string
+  end: string
+}
 
 const _useDashboard = () => {
   const route = useRoute()
   const router = useRouter()
+  const toast = useToast()
   const isNotificationsSlideoverOpen = ref(false)
 
-  // Estado para período selecionado
-  const selectedPeriod = ref<'7d' | '1m' | '3m' | '6m' | '1y'>('1m')
-
-  // Estado para range de datas personalizado
-  const customDateRange = ref<{ start: string; end: string } | null>(null)
+  const selectedPeriod = useState<FilterPeriod>('dashboardFilterPeriod', () => 'week')
+  const customDateRange = useState<DateRange | null>('dashboardCustomRange', () => null)
+  const isLoadingData = ref(false)
 
   defineShortcuts({
     'g-h': () => router.push('/dashboard'),
@@ -22,49 +28,122 @@ const _useDashboard = () => {
   })
 
   /**
-   * Calcula o range de datas baseado no período selecionado
+   * Calculates date range based on selected period
    */
-  const getDateRangeForPeriod = (period: typeof selectedPeriod.value) => {
+  const getDateRangeForPeriod = (period: FilterPeriod): DateRange => {
     const end = new Date()
     const start = new Date()
 
     switch (period) {
-      case '7d':
+      case 'day':
+        break
+      case 'week':
         start.setDate(end.getDate() - 7)
         break
-      case '1m':
+      case 'month':
         start.setMonth(end.getMonth() - 1)
         break
-      case '3m':
-        start.setMonth(end.getMonth() - 3)
-        break
-      case '6m':
-        start.setMonth(end.getMonth() - 6)
-        break
-      case '1y':
-        start.setFullYear(end.getFullYear() - 1)
-        break
+      case 'custom':
+        return customDateRange.value || { start: '', end: '' }
     }
 
     return {
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0]
+      start: start.toISOString().split('T')[0]!,
+      end: end.toISOString().split('T')[0]!
     }
   }
 
   /**
-   * Retorna o range de datas atual (customizado ou baseado no período)
+   * Validates custom date range
    */
-  const currentDateRange = computed(() => {
-    return customDateRange.value || getDateRangeForPeriod(selectedPeriod.value)
+  const validateCustomRange = (startDate: string, endDate: string): boolean => {
+    if (!startDate || !endDate) {
+      toast.add({
+        title: 'Período inválido',
+        description: 'Data inicial e final são obrigatórias para o período customizado.',
+        color: 'error',
+        icon: 'i-lucide-alert-circle'
+      })
+      return false
+    }
+
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+
+    if (start > end) {
+      toast.add({
+        title: 'Período inválido',
+        description: 'Período inválido. Verifique as datas informadas.',
+        color: 'error',
+        icon: 'i-lucide-alert-circle'
+      })
+      return false
+    }
+
+    const diffTime = Math.abs(end.getTime() - start.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays > 365) {
+      toast.add({
+        title: 'Período muito longo',
+        description: 'O período não pode exceder 1 ano.',
+        color: 'error',
+        icon: 'i-lucide-alert-circle'
+      })
+      return false
+    }
+
+    return true
+  }
+
+  /**
+   * Sets custom date range with validation
+   */
+  const setCustomDateRange = (startDate: string, endDate: string): boolean => {
+    if (!validateCustomRange(startDate, endDate)) {
+      return false
+    }
+
+    customDateRange.value = { start: startDate, end: endDate }
+    selectedPeriod.value = 'custom'
+    return true
+  }
+
+  /**
+   * Returns current active date range
+   */
+  const currentDateRange = computed<DateRange>(() => {
+    if (selectedPeriod.value === 'custom' && customDateRange.value) {
+      return customDateRange.value
+    }
+    return getDateRangeForPeriod(selectedPeriod.value)
   })
+
+  /**
+   * Changes filter period with debounce optimization
+   */
+  const changePeriod = useDebounceFn((period: FilterPeriod) => {
+    if (period === 'custom' && !customDateRange.value) {
+      return
+    }
+    selectedPeriod.value = period
+    isLoadingData.value = true
+
+    setTimeout(() => {
+      isLoadingData.value = false
+    }, 300)
+  }, 150)
 
   return {
     isNotificationsSlideoverOpen,
     selectedPeriod,
     customDateRange,
     currentDateRange,
-    getDateRangeForPeriod
+    isLoadingData,
+    getDateRangeForPeriod,
+    validateCustomRange,
+    setCustomDateRange,
+    changePeriod
   }
 }
 

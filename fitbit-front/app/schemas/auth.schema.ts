@@ -42,12 +42,12 @@ export const registerSchema = z.object({
         code: z.ZodIssueCode.custom
       })
     } else {
-      // Validate CRM format
+      // Validate CRM format (2 letters + 6 digits, e.g., SP123456)
       const crmTrimmed = data.crm.trim().toUpperCase()
-      if (!/^\d{4,6}$/.test(crmTrimmed)) {
+      if (!/^[A-Z]{2}\d{6}$/.test(crmTrimmed)) {
         ctx.addIssue({
           path: ['crm'],
-          message: 'CRM must contain 4 to 6 digits',
+          message: 'CRM must be exactly 8 characters (2 letters for state and 6 digits, e.g., SP123456)',
           code: z.ZodIssueCode.custom
         })
       }

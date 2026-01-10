@@ -63,7 +63,6 @@ const submitHandler = handleSubmit(async (values) => {
       icon: 'i-heroicons-check-circle'
     })
 
-    // Redireciona baseado no tipo de usuário
     if (isPatient.value && user.value) {
       await navigateTo(`/dashboard/${user.value.id}`)
     } else {
