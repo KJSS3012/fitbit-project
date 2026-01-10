@@ -47,7 +47,8 @@ def create_access_token(subject: Union[str, Any], user_type: str) -> str:
     Create a JWT access token.
     user_type: "patient" or "doctor"
     """
-    expire = datetime.utcnow() + timedelta(minutes=SETTINGS["ACCESS_TOKEN_EXPIRE_MINUTES"])
+    from datetime import timezone
+    expire = datetime.now(timezone.utc) + timedelta(minutes=SETTINGS["ACCESS_TOKEN_EXPIRE_MINUTES"])
     
     to_encode = {
         "sub": str(subject),

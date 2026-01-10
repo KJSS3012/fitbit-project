@@ -14,6 +14,10 @@ const { user, isPatient, isDoctor, fetchUser } = useAuth()
 const { currentDateRange, isLoadingData, selectedPeriod } = useDashboard()
 const {
   isSimulationMode,
+  isFitbitMode,
+  lastSyncTime,
+  enableFitbitMode,
+  enableSimulationMode,
   toggleSimulation,
   getStepsData,
   getHeartRateData,
@@ -31,17 +35,6 @@ const {
   checkFitbitStatus,
   disconnectFitbit
 } = useFitbitAuth()
-
-// Fetch user data on mount
-onMounted(async () => {
-  await fetchUser()
-  await checkFitbitStatus()
-
-  // Force refresh data after Fitbit connection
-  if (isFitbitConnected.value && !isSimulationMode.value) {
-    await fetchFitbitData()
-  }
-})
 
 // Security: No ID in URL - using authenticated user from JWT token
 // Patient sees their own data, doctor redirects to /patients list
@@ -69,6 +62,23 @@ const handleExport = () => {
   router.push('/dashboard/export')
 }
 
+// Format last sync time (e.g., "há 2 minutos")
+const formatLastSync = (syncTime: Date) => {
+  const now = new Date()
+  const diffMs = now.getTime() - syncTime.getTime()
+  const diffMinutes = Math.floor(diffMs / 60000)
+
+  if (diffMinutes < 1) return 'agora mesmo'
+  if (diffMinutes === 1) return 'há 1 minuto'
+  if (diffMinutes < 60) return `há ${diffMinutes} minutos`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours === 1) return 'há 1 hora'
+  if (diffHours < 24) return `há ${diffHours} horas`
+
+  return syncTime.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
 // Reactive data loaded asynchronously
 const stepsData = ref<Array<{ date: string; value: number }>>([])
 const heartRateData = ref<Array<{ date: string; value: number }>>([])
@@ -81,17 +91,47 @@ const stats = ref({
   calories: { total: 0, average: 0 }
 })
 
-// Load data when dependencies change
-watchEffect(async () => {
-  const start = range.value.start
-  const end = range.value.end
-  const p = period.value
+const isRefreshing = ref(false)
 
-  stepsData.value = await getStepsData(start, end, p)
-  heartRateData.value = await getHeartRateData(start, end, p)
-  sleepData.value = await getSleepData(start, end, p)
-  caloriesData.value = await getCaloriesData(start, end, p)
-  stats.value = await getStats(start, end)
+// Manual data refresh function
+const refreshData = async () => {
+  if (isRefreshing.value) return
+
+  isRefreshing.value = true
+  try {
+    const start = range.value.start
+    const end = range.value.end
+    const p = period.value
+
+    // Load all data in parallel
+    const [steps, heartRate, sleep, calories, statistics] = await Promise.all([
+      getStepsData(start, end, p),
+      getHeartRateData(start, end, p),
+      getSleepData(start, end, p),
+      getCaloriesData(start, end, p),
+      getStats(start, end)
+    ])
+
+    stepsData.value = steps
+    heartRateData.value = heartRate
+    sleepData.value = sleep
+    caloriesData.value = calories
+    stats.value = statistics
+  } finally {
+    isRefreshing.value = false
+  }
+}
+
+// Load data on mount only
+onMounted(async () => {
+  await fetchUser()
+  await checkFitbitStatus()
+  await refreshData()
+})
+
+// Refresh when period or mode changes
+watch([selectedPeriod, isFitbitMode, isSimulationMode], () => {
+  refreshData()
 })
 
 const hasData = computed(() =>
@@ -106,44 +146,65 @@ const showInsufficientDataWarning = computed(() =>
 <template>
   <UDashboardPanel id="patient-dashboard">
     <template #header>
-      <UDashboardNavbar>
-        <template #title>
-          <span class="text-xl font-semibold">
-            Olá, {{ user?.name || 'Usuário' }}!
-          </span>
-        </template>
+      <UDashboardNavbar title="Meu Dashboard">
         <template #leading>
           <UDashboardSidebarCollapse />
         </template>
 
         <template #right>
           <div class="flex items-center gap-2">
-            <UBadge v-if="isFitbitConnected" color="primary" variant="subtle">
+            <!-- Last Sync Time -->
+            <div v-if="lastSyncTime" class="text-xs text-gray-500 dark:text-gray-400">
+              Última atualização: {{ formatLastSync(lastSyncTime) }}
+            </div>
+
+            <!-- Refresh Button -->
+            <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" size="sm" square :loading="isRefreshing"
+              @click="refreshData" aria-label="Atualizar dados" />
+
+            <UBadge v-if="isFitbitMode && isFitbitConnected" color="primary" variant="subtle">
               <UIcon name="i-simple-icons-fitbit" class="size-4 mr-1" />
-              Fitbit Conectado
+              Fitbit Ativo
             </UBadge>
 
             <UBadge v-if="isSimulationMode" color="success" variant="subtle">
               <UIcon name="i-lucide-flask-conical" class="size-4 mr-1" />
-              Modo Simulação
+              Simulação Ativa
             </UBadge>
           </div>
 
           <UPopover>
-            <UButton icon="i-lucide-plus" color="primary" variant="soft" square />
+            <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="soft" square />
 
             <template #content>
-              <div class="p-2 w-64">
-                <UButton v-if="!isFitbitConnected" label="Conectar Fitbit" icon="i-simple-icons-fitbit" color="primary"
-                  variant="ghost" block class="justify-start mb-1" :loading="isConnecting" @click="connectFitbit" />
-                <UButton v-else label="Desconectar Fitbit" icon="i-simple-icons-fitbit" color="error" variant="ghost"
-                  block class="justify-start mb-1" @click="disconnectFitbit" />
+              <div class="p-3 w-72">
+                <div class="mb-3">
+                  <p class="text-sm font-semibold mb-2">Fonte de Dados</p>
+                  <div class="space-y-2">
+                    <UButton :label="isFitbitMode ? 'Fitbit (Ativo)' : 'Ativar Fitbit'"
+                      :icon="isFitbitMode ? 'i-lucide-check-circle' : 'i-simple-icons-fitbit'"
+                      :color="isFitbitMode ? 'primary' : 'neutral'" :variant="isFitbitMode ? 'soft' : 'ghost'" block
+                      class="justify-start" :disabled="!isFitbitConnected" @click="enableFitbitMode" />
+                    <UButton :label="isSimulationMode ? 'Simulação (Ativa)' : 'Ativar Simulação'"
+                      :icon="isSimulationMode ? 'i-lucide-check-circle' : 'i-lucide-flask-conical'"
+                      :color="isSimulationMode ? 'success' : 'neutral'" :variant="isSimulationMode ? 'soft' : 'ghost'"
+                      block class="justify-start" @click="enableSimulationMode" />
+                  </div>
+                </div>
 
-                <UDivider class="my-1" />
+                <div class="my-2 border-t border-gray-200 dark:border-gray-800" />
 
-                <UButton :label="isSimulationMode ? 'Desativar Simulação' : 'Simular Dados'"
-                  :icon="isSimulationMode ? 'i-lucide-database-zap' : 'i-lucide-flask-conical'" color="neutral"
-                  variant="ghost" block class="justify-start mb-1" @click="toggleSimulation" />
+                <div class="space-y-1">
+                  <p class="text-sm font-semibold mb-2">Conexão Fitbit</p>
+                  <UButton v-if="!isFitbitConnected" label="Conectar Fitbit" icon="i-simple-icons-fitbit"
+                    color="primary" variant="ghost" block class="justify-start" :loading="isConnecting"
+                    @click="connectFitbit" />
+                  <UButton v-else label="Desconectar Fitbit" icon="i-lucide-unplug" color="error" variant="ghost" block
+                    class="justify-start" @click="disconnectFitbit" />
+                </div>
+
+                <div class="my-2 border-t border-gray-200 dark:border-gray-800" />
+
                 <UButton label="Exportar Dados" icon="i-lucide-download" color="neutral" variant="ghost" block
                   class="justify-start" @click="handleExport" />
               </div>

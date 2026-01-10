@@ -3,40 +3,127 @@ import { startOfDay, endOfDay, isWithinInterval, parseISO, startOfWeek, endOfWee
 
 export type TimeFilter = 'daily' | 'weekly' | 'monthly'
 
+interface FitbitApiResponse {
+  activity?: {
+    summary?: {
+      steps?: number
+      caloriesOut?: number
+    }
+  }
+  heartrate?: {
+    'activities-heart'?: Array<{
+      value?: {
+        restingHeartRate?: number
+      }
+    }>
+  }
+  sleep?: {
+    summary?: {
+      totalMinutesAsleep?: number
+    }
+  }
+}
+
 export const useFitbitData = () => {
   const config = useRuntimeConfig()
   const { token } = useAuth()
   const { isFitbitConnected } = useFitbitAuth()
 
-  const isSimulationMode = useState('fitbit-simulation', () => false)
-  const realFitbitData = useState<any>('fitbit-real-data', () => null)
+  const API_BASE_URL = config.public.apiBase || 'http://localhost:8000'
 
-  const toggleSimulation = () => {
-    isSimulationMode.value = !isSimulationMode.value
+  const isSimulationMode = useState('fitbit-simulation', () => false)
+  const isFitbitMode = useState('fitbit-mode', () => true)
+  const realFitbitData = useState<any>('fitbit-real-data', () => null)
+  const lastSyncTime = useState<Date | null>('fitbit-last-sync', () => null)
+
+  // Cache for API requests (key: date, value: { data, timestamp })
+  const requestCache = useState<Record<string, { data: FitbitApiResponse; timestamp: number }>>('fitbit-request-cache', () => ({}))
+  const CACHE_DURATION = 60000 // 1 minute cache
+
+  // Track pending requests to avoid duplicates
+  const pendingRequests = useState<Record<string, Promise<FitbitApiResponse | null>>>('fitbit-pending-requests', () => ({}))
+
+  /**
+   * Enables Fitbit mode (disables simulation)
+   */
+  const enableFitbitMode = () => {
+    isFitbitMode.value = true
+    isSimulationMode.value = false
   }
 
   /**
-   * Fetch real Fitbit data from API
+   * Enables simulation mode (disables Fitbit)
    */
-  const fetchFitbitData = async (date: string = format(new Date(), 'yyyy-MM-dd')) => {
+  const enableSimulationMode = () => {
+    isSimulationMode.value = true
+    isFitbitMode.value = false
+  }
+
+  /**
+   * Legacy toggle for backward compatibility
+   * @deprecated Use enableFitbitMode or enableSimulationMode instead
+   */
+  const toggleSimulation = () => {
+    if (isSimulationMode.value) {
+      enableFitbitMode()
+    } else {
+      enableSimulationMode()
+    }
+  }
+
+  /**
+   * Fetch real Fitbit data from API with caching and deduplication
+   */
+  const fetchFitbitData = async (date: string = format(new Date(), 'yyyy-MM-dd')): Promise<FitbitApiResponse | null> => {
     if (!isFitbitConnected.value || !token.value) {
       return null
     }
 
-    try {
-      const data = await $fetch(`${config.public.apiBaseUrl}/fitbit/dashboard`, {
-        params: { day: date },
-        headers: {
-          Authorization: `Bearer ${token.value}`
-        }
-      })
-
-      realFitbitData.value = data
-      return data
-    } catch (error) {
-      console.error('Error fetching Fitbit data:', error)
-      return null
+    // Check cache first
+    const cached = requestCache.value[date]
+    if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+      return cached.data
     }
+
+    // Check if request is already pending
+    if (pendingRequests.value[date]) {
+      return pendingRequests.value[date]
+    }
+
+    // Create new request
+    const request = (async () => {
+      try {
+        const data = await $fetch<FitbitApiResponse>(`${API_BASE_URL}/fitbit/dashboard`, {
+          params: { day: date },
+          headers: {
+            Authorization: `Bearer ${token.value}`
+          }
+        })
+
+        // Cache the response
+        requestCache.value[date] = {
+          data,
+          timestamp: Date.now()
+        }
+
+        lastSyncTime.value = new Date()
+        realFitbitData.value = data
+        return data
+      } catch (error) {
+        // Return cached data on error if available
+        if (cached) {
+          return cached.data
+        }
+        return null
+      } finally {
+        // Clean up pending request
+        delete pendingRequests.value[date]
+      }
+    })()
+
+    // Store pending request
+    pendingRequests.value[date] = request
+    return request
   }
 
   const filterByDateRange = <T extends { dateTime?: string; dateOfSleep?: string }>(
@@ -98,8 +185,8 @@ export const useFitbitData = () => {
    * Obtém dados de passos (Prioridade: Fitbit > Simulação)
    */
   const getStepsData = async (startDate: Date, endDate: Date, period: TimeFilter = 'daily') => {
-    // Priority 1: Real Fitbit data
-    if (isFitbitConnected.value && !isSimulationMode.value) {
+    // Priority 1: Real Fitbit data (only if Fitbit mode enabled and connected)
+    if (isFitbitMode.value && isFitbitConnected.value && !isSimulationMode.value) {
       const fitbitData = await fetchFitbitData(format(endDate, 'yyyy-MM-dd'))
       if (fitbitData?.activity?.summary?.steps) {
         return [{
@@ -107,19 +194,26 @@ export const useFitbitData = () => {
           value: fitbitData.activity.summary.steps
         }]
       }
+      // Return empty if Fitbit enabled but no data yet
+      return []
     }
 
-    // Priority 2: Simulation fallback
-    const filtered = filterByDateRange(mockData['activities-steps'], startDate, endDate)
-    return groupByPeriod(filtered, period)
+    // Priority 2: Simulation fallback (only if simulation mode enabled)
+    if (isSimulationMode.value) {
+      const filtered = filterByDateRange(mockData['activities-steps'], startDate, endDate)
+      return groupByPeriod(filtered, period)
+    }
+
+    // No mode enabled or data available
+    return []
   }
 
   /**
    * Obtém dados de batimentos cardíacos (Prioridade: Fitbit > Simulação)
    */
   const getHeartRateData = async (startDate: Date, endDate: Date, period: TimeFilter = 'daily') => {
-    // Priority 1: Real Fitbit data
-    if (isFitbitConnected.value && !isSimulationMode.value) {
+    // Priority 1: Real Fitbit data (only if Fitbit mode enabled and connected)
+    if (isFitbitMode.value && isFitbitConnected.value && !isSimulationMode.value) {
       const fitbitData = await fetchFitbitData(format(endDate, 'yyyy-MM-dd'))
       if (fitbitData?.heartrate?.['activities-heart']?.[0]?.value?.restingHeartRate) {
         return [{
@@ -127,24 +221,31 @@ export const useFitbitData = () => {
           value: fitbitData.heartrate['activities-heart'][0].value.restingHeartRate
         }]
       }
+      // Return empty if Fitbit enabled but no data yet
+      return []
     }
 
-    // Priority 2: Simulation fallback
-    const heartData = mockData['activities-heart'].map(item => ({
-      dateTime: item.dateTime,
-      value: item.value?.restingHeartRate || 0
-    }))
+    // Priority 2: Simulation fallback (only if simulation mode enabled)
+    if (isSimulationMode.value) {
+      const heartData = mockData['activities-heart'].map(item => ({
+        dateTime: item.dateTime,
+        value: item.value?.restingHeartRate || 0
+      }))
 
-    const filtered = filterByDateRange(heartData, startDate, endDate)
-    return groupByPeriod(filtered, period)
+      const filtered = filterByDateRange(heartData, startDate, endDate)
+      return groupByPeriod(filtered, period)
+    }
+
+    // No mode enabled or data available
+    return []
   }
 
   /**
    * Obtém dados de sono (Prioridade: Fitbit > Simulação)
    */
   const getSleepData = async (startDate: Date, endDate: Date, period: TimeFilter = 'daily') => {
-    // Priority 1: Real Fitbit data
-    if (isFitbitConnected.value && !isSimulationMode.value) {
+    // Priority 1: Real Fitbit data (only if Fitbit mode enabled and connected)
+    if (isFitbitMode.value && isFitbitConnected.value && !isSimulationMode.value) {
       const fitbitData = await fetchFitbitData(format(endDate, 'yyyy-MM-dd'))
       if (fitbitData?.sleep?.summary?.totalMinutesAsleep) {
         return [{
@@ -152,31 +253,38 @@ export const useFitbitData = () => {
           value: fitbitData.sleep.summary.totalMinutesAsleep
         }]
       }
+      // Return empty if Fitbit enabled but no data yet
+      return []
     }
 
-    // Priority 2: Simulation fallback
-    const sleepData = mockData.sleep.map(item => {
-      const totalMinutes =
-        (item.levels?.summary?.deep?.minutes || 0) +
-        (item.levels?.summary?.light?.minutes || 0) +
-        (item.levels?.summary?.rem?.minutes || 0)
+    // Priority 2: Simulation fallback (only if simulation mode enabled)
+    if (isSimulationMode.value) {
+      const sleepData = mockData.sleep.map(item => {
+        const totalMinutes =
+          (item.levels?.summary?.deep?.minutes || 0) +
+          (item.levels?.summary?.light?.minutes || 0) +
+          (item.levels?.summary?.rem?.minutes || 0)
 
-      return {
-        dateOfSleep: item.dateOfSleep,
-        value: totalMinutes
-      }
-    })
+        return {
+          dateOfSleep: item.dateOfSleep,
+          value: totalMinutes
+        }
+      })
 
-    const filtered = filterByDateRange(sleepData, startDate, endDate)
-    return groupByPeriod(filtered, period)
+      const filtered = filterByDateRange(sleepData, startDate, endDate)
+      return groupByPeriod(filtered, period)
+    }
+
+    // No mode enabled or data available
+    return []
   }
 
   /**
    * Obtém dados de calorias (Prioridade: Fitbit > Simulação)
    */
   const getCaloriesData = async (startDate: Date, endDate: Date, period: TimeFilter = 'daily') => {
-    // Priority 1: Real Fitbit data
-    if (isFitbitConnected.value && !isSimulationMode.value) {
+    // Priority 1: Real Fitbit data (only if Fitbit mode enabled and connected)
+    if (isFitbitMode.value && isFitbitConnected.value && !isSimulationMode.value) {
       const fitbitData = await fetchFitbitData(format(endDate, 'yyyy-MM-dd'))
       if (fitbitData?.activity?.summary?.caloriesOut) {
         return [{
@@ -184,11 +292,18 @@ export const useFitbitData = () => {
           value: fitbitData.activity.summary.caloriesOut
         }]
       }
+      // Return empty if Fitbit enabled but no data yet
+      return []
     }
 
-    // Priority 2: Simulation fallback
-    const filtered = filterByDateRange(mockData['activities-calories'], startDate, endDate)
-    return groupByPeriod(filtered, period)
+    // Priority 2: Simulation fallback (only if simulation mode enabled)
+    if (isSimulationMode.value) {
+      const filtered = filterByDateRange(mockData['activities-calories'], startDate, endDate)
+      return groupByPeriod(filtered, period)
+    }
+
+    // No mode enabled or data available
+    return []
   }
 
   /**
@@ -252,6 +367,10 @@ export const useFitbitData = () => {
 
   return {
     isSimulationMode,
+    isFitbitMode,
+    lastSyncTime,
+    enableFitbitMode,
+    enableSimulationMode,
     toggleSimulation,
     fetchFitbitData,
     getStepsData,

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.fitbit_controller import router as fitbit_router
 from app.controllers.dashboard_controller import router as dashboard_router
+from app.controllers.user_controller import router as user_router
 
 # --- DATABASE IMPORTS ---
 from app.database.connection import engine, Base
@@ -32,6 +33,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/auth")
 app.include_router(fitbit_router, prefix="/fitbit")
 app.include_router(dashboard_router, prefix="/dashboard")
+app.include_router(user_router, prefix="/user")
 
 # Rota raiz para teste
 @app.get("/")

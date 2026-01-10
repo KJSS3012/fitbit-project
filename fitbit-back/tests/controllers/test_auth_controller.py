@@ -1,20 +1,45 @@
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.controllers.auth_controller import router
-from app.models.mock import FAKE_PATIENTS_DB 
+from app.database.connection import Base, get_db
+
+# Test database setup
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 app.include_router(router, prefix="/auth")
+
+def override_get_db():
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+app.dependency_overrides[get_db] = override_get_db
 
 @pytest.fixture
 def client():
     """
     Fixture that provides a TestClient for the FastAPI app.
-    Clears the mock patients database before each test.
+    Recreates database schema before each test.
     """
-    FAKE_PATIENTS_DB.clear()
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     return TestClient(app)
 
 def test_register_patient_success(client):
