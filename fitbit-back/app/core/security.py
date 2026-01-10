@@ -2,7 +2,34 @@ from datetime import datetime, timedelta
 from typing import Any, Union
 from jose import jwt
 from passlib.context import CryptContext
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.settings import SETTINGS 
+
+security_scheme = HTTPBearer()
+
+def validate_token(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
+    """Decodes and validates the token received in the Header."""
+    token = credentials.credentials
+    
+    try:
+        payload = jwt.decode(
+            token, 
+            SETTINGS["SECRET_KEY"], 
+            algorithms=[SETTINGS["ALGORITHM"]]
+        )
+        return payload  # Returns data (cpf, type, etc) if valid
+        
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired"
+        )
+    except jwt.JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
 
 # Configure password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

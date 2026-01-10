@@ -1,6 +1,7 @@
 # tests/test_dependencies.py
 import pytest
 from fastapi import HTTPException
+from fastapi.security import HTTPAuthorizationCredentials # <--- Necessary import
 from jose import jwt
 from app.api.dependencies import get_current_user_cpf
 from app.core.settings import SETTINGS
@@ -49,8 +50,11 @@ def test_get_current_user_cpf_success():
     # Manually generate a valid token using the same app settings
     valid_token = jwt.encode(payload, SETTINGS["SECRET_KEY"], algorithm=SETTINGS["ALGORITHM"])
 
-    # Call the function directly (as if it were a standard function)
-    result = get_current_user_cpf(token=valid_token)
+    # UPDATE: Wrap the token in HTTPAuthorizationCredentials object
+    mock_creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=valid_token)
+
+    # Call the function passing 'credentials' instead of 'token'
+    result = get_current_user_cpf(credentials=mock_creds)
 
     assert result == test_cpf
 
@@ -61,8 +65,11 @@ def test_get_current_user_cpf_invalid_token():
     """
     invalid_token = "totally.wrong.token"
 
+    # UPDATE: Wrap the invalid token
+    mock_creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=invalid_token)
+
     with pytest.raises(HTTPException) as exc:
-        get_current_user_cpf(token=invalid_token)
+        get_current_user_cpf(credentials=mock_creds)
     
     assert exc.value.status_code == 401
     assert exc.value.detail == "Could not validate credentials"
@@ -76,8 +83,11 @@ def test_get_current_user_cpf_missing_sub():
     payload = {"name": "Test Without CPF"} 
     token_missing_sub = jwt.encode(payload, SETTINGS["SECRET_KEY"], algorithm=SETTINGS["ALGORITHM"])
 
+    # UPDATE: Wrap the token
+    mock_creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token_missing_sub)
+
     with pytest.raises(HTTPException) as exc:
-        get_current_user_cpf(token=token_missing_sub)
+        get_current_user_cpf(credentials=mock_creds)
     
     assert exc.value.status_code == 401
     assert exc.value.detail == "Could not validate credentials"
