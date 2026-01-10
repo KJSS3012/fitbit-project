@@ -16,12 +16,11 @@ from app.services.auth_validators import (
     validate_crm
 )
 
-from app.services.security import get_password_hash, verify_password, create_access_token
+from app.core.security import get_password_hash, verify_password, create_access_token
 from typing import List, Dict, Any
 
 # In-memory "tables" (Mock DB)
-fake_patients_db: List[Dict[str, Any]] = []
-fake_doctors_db: List[Dict[str, Any]] = []
+from app.models.mock import FAKE_PATIENTS_DB, FAKE_DOCTORS_DB
 
 
 # --- PATIENT LOGIC ---
@@ -58,7 +57,7 @@ def create_patient(patient_in: PatientCreate) -> JSONResponse:
         )
 
     # 409 Conflict: CPF duplication
-    if any(p.get("cpf") == patient_in.cpf for p in fake_patients_db):
+    if any(p.get("cpf") == patient_in.cpf for p in FAKE_PATIENTS_DB):
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={"detail": "CPF already registered."}
@@ -70,7 +69,7 @@ def create_patient(patient_in: PatientCreate) -> JSONResponse:
         "name": patient_in.name,
         "password": get_password_hash(patient_in.password),
     }
-    fake_patients_db.append(patient_data)
+    FAKE_PATIENTS_DB.append(patient_data)
 
     # Prepare Response Model
     response_data = PatientResponse(
@@ -101,7 +100,7 @@ def login_patient(credentials_in: PatientLogin) -> JSONResponse:
     
     # 401 Unauthorized: Find user by CPF
     patient_record = next(
-        (p for p in fake_patients_db if p.get("cpf") == credentials_in.cpf),
+        (p for p in FAKE_PATIENTS_DB if p.get("cpf") == credentials_in.cpf),
         None
     )
     if not patient_record:
@@ -172,14 +171,14 @@ def create_doctor(doctor_in: DoctorCreate) -> JSONResponse:
         )
      
     # 409 Conflict: CPF duplication
-    if any(p.get("cpf") == doctor_in.cpf for p in fake_doctors_db):
+    if any(p.get("cpf") == doctor_in.cpf for p in FAKE_DOCTORS_DB):
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={"detail": "CPF already registered."}
         )
     
     # 409 Conflict: CRM duplication
-    if any(d.get("crm") == doctor_in.crm for d in fake_doctors_db):
+    if any(d.get("crm") == doctor_in.crm for d in FAKE_DOCTORS_DB):
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={"detail": "CRM already registered."}
@@ -192,7 +191,7 @@ def create_doctor(doctor_in: DoctorCreate) -> JSONResponse:
         "crm": doctor_in.crm,
         "password": get_password_hash(doctor_in.password) 
     }
-    fake_doctors_db.append(doctor_data)
+    FAKE_DOCTORS_DB.append(doctor_data)
     
     # Prepare Response Model
     response_data = DoctorResponse(
@@ -224,7 +223,7 @@ def login_doctor(credentials_in: DoctorLogin) -> JSONResponse:
 
     # 401 Unauthorized: Find user by CRM
     doctor_record = next(
-        (d for d in fake_doctors_db if d.get("crm") == credentials_in.crm),
+        (d for d in FAKE_DOCTORS_DB if d.get("crm") == credentials_in.crm),
         None
     )
     if not doctor_record:

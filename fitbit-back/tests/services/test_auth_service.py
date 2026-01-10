@@ -2,8 +2,8 @@ import pytest
 import json
 from app.services.auth_service import create_patient, create_doctor
 from app.schemas.auth_schema import PatientCreate, DoctorCreate
-from app.services.auth_service import fake_patients_db, fake_doctors_db
-from app.services.security import verify_password
+from app.models.mock import FAKE_PATIENTS_DB as fake_patients_db, FAKE_DOCTORS_DB as fake_doctors_db
+from app.core.security import verify_password
 
 @pytest.fixture(autouse=True)
 def clear_fake_db():
@@ -26,7 +26,7 @@ def test_create_patient_success():
     
     assert response.status_code == 200 or response.status_code == 201
     assert data["cpf"] == patient.cpf
-    assert data["name"] == patient.name
+    assert data["name"] == patient.name.upper()
 
 def test_create_patient_invalid_name():
     patient = PatientCreate(
@@ -110,7 +110,7 @@ def test_create_doctor_success():
 
     assert response.status_code == 200 or response.status_code == 201
     assert data["crm"] == doctor.crm
-    assert data["name"] == doctor.name
+    assert data["name"] == doctor.name.upper()
 
 def test_create_doctor_invalid_crm():
     doctor = DoctorCreate(

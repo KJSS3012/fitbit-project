@@ -1,20 +1,20 @@
-import sys
-import os
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
-
 from app.controllers.auth_controller import router
-from app.services.auth_service import fake_patients_db
+from app.models.mock import FAKE_PATIENTS_DB 
 
 app = FastAPI()
 app.include_router(router, prefix="/auth")
 
 @pytest.fixture
 def client():
-    fake_patients_db.clear()
+    """
+    Fixture that provides a TestClient for the FastAPI app.
+    Clears the mock patients database before each test.
+    """
+    FAKE_PATIENTS_DB.clear()
     return TestClient(app)
 
 def test_register_patient_success(client):
@@ -35,11 +35,15 @@ def test_register_patient_duplicate_cpf(client):
         "name": "João Cabral",
         "password": "Abcdefjhijk1!"
     }
-    client.post("/auth/register/patient", json=payload)
     
-    response = client.post("/auth/register/patient", json=payload)
-    assert response.status_code == 409
-    assert response.json()["detail"] == "CPF already registered."
+    # First submission: Should succeed
+    response1 = client.post("/auth/register/patient", json=payload)
+    assert response1.status_code == 201
+    
+    # Second submission: Should fail with 409 Conflict
+    response2 = client.post("/auth/register/patient", json=payload)
+    assert response2.status_code == 409
+    assert response2.json()["detail"] == "CPF already registered."
 
 def test_register_patient_invalid_cpf_format(client):
     payload = {
