@@ -4,6 +4,14 @@ from app.controllers.auth_controller import router as auth_router
 from app.controllers.fitbit_controller import router as fitbit_router
 from app.controllers.dashboard_controller import router as dashboard_router
 
+# --- DATABASE IMPORTS ---
+from app.database.connection import engine, Base
+from app.models.patient import Patient
+from app.models.doctor import Doctor
+
+# --- CREATE TABLES ---
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
 
 # Configuração de CORS para permitir requisições do Nuxt

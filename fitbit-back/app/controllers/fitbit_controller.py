@@ -2,9 +2,12 @@ import os
 import base64
 import requests
 from datetime import date
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
+from typing import Dict
+
+from app.api.dependencies import get_current_user
 
 load_dotenv()
 
@@ -67,23 +70,56 @@ def callback(code: str = Query(...)):
     return RedirectResponse("http://localhost:3000/dashboard")
 
 @router.get("/profile")
-def profile():
+def profile(current_user: Dict = Depends(get_current_user)):
+    """
+    Get Fitbit profile.
+    Requires: JWT token (patient or doctor)
+    """
     return fitbit_get(f"{FITBIT_API_BASE_URL}/profile.json")
 
 @router.get("/activity")
-def activity(day: str = date.today().isoformat()):
+def activity(
+    day: str = date.today().isoformat(),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Get Fitbit activity for a specific day.
+    Requires: JWT token (patient or doctor)
+    """
     return fitbit_get(f"{FITBIT_API_BASE_URL}/activities/date/{day}.json")
 
 @router.get("/heartrate")
-def heartrate(day: str = date.today().isoformat()):
+def heartrate(
+    day: str = date.today().isoformat(),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Get Fitbit heart rate for a specific day.
+    Requires: JWT token (patient or doctor)
+    """
     return fitbit_get(f"{FITBIT_API_BASE_URL}/activities/heart/date/{day}/1d.json")
 
 @router.get("/sleep")
-def sleep(day: str = date.today().isoformat()):
+def sleep(
+    day: str = date.today().isoformat(),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Get Fitbit sleep data for a specific day.
+    Requires: JWT token (patient or doctor)
+    """
     return fitbit_get(f"{FITBIT_API_BASE_URL}/sleep/date/{day}.json")
 
 @router.get("/dashboard")
-def dashboard(day: str = date.today().isoformat()):
+def dashboard(
+    day: str = date.today().isoformat(),
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Get complete Fitbit dashboard data.
+    Requires: JWT token (patient or doctor)
+    User info: current_user["sub"] = CPF/CRM, current_user["type"] = patient/doctor
+    """
     return {
         "profile": fitbit_get(f"{FITBIT_API_BASE_URL}/profile.json"),
         "activity": fitbit_get(f"{FITBIT_API_BASE_URL}/activities/date/{day}.json"),

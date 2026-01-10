@@ -1,6 +1,8 @@
 from fastapi import status
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy.orm import Session
+
 from app.schemas.auth_schema import (
     PatientCreate,
     PatientResponse,
@@ -17,15 +19,15 @@ from app.services.auth_validators import (
 )
 
 from app.core.security import get_password_hash, verify_password, create_access_token
-from typing import List, Dict, Any
 
-# In-memory "tables" (Mock DB)
-from app.models.mock import FAKE_PATIENTS_DB, FAKE_DOCTORS_DB
+# Import Repositories
+from app.repositories.patient_repository import PatientRepository
+from app.repositories.doctor_repository import DoctorRepository
 
 
 # --- PATIENT LOGIC ---
 
-def create_patient(patient_in: PatientCreate) -> JSONResponse:
+def create_patient(patient_in: PatientCreate, db: Session) -> JSONResponse:
 
     # Clean input data
     patient_in.name = patient_in.name.upper().strip()
@@ -56,25 +58,24 @@ def create_patient(patient_in: PatientCreate) -> JSONResponse:
             content={"detail": password_error}
         )
 
+    # Inicializa o Repositório
+    repository = PatientRepository(db)
+
     # 409 Conflict: CPF duplication
-    if any(p.get("cpf") == patient_in.cpf for p in FAKE_PATIENTS_DB):
+    if repository.find_by_cpf(patient_in.cpf):
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={"detail": "CPF already registered."}
         )
 
     # Persist Data
-    patient_data = {
-        "cpf": patient_in.cpf,
-        "name": patient_in.name,
-        "password": get_password_hash(patient_in.password),
-    }
-    FAKE_PATIENTS_DB.append(patient_data)
+    hashed_password = get_password_hash(patient_in.password)
+    new_patient = repository.create(patient_in, hashed_password)
 
     # Prepare Response Model
     response_data = PatientResponse(
-        cpf=patient_data["cpf"],
-        name=patient_data["name"]
+        cpf=new_patient.cpf,
+        name=new_patient.name
     )
 
     # 201 Successful Response
@@ -84,7 +85,7 @@ def create_patient(patient_in: PatientCreate) -> JSONResponse:
     )
 
 
-def login_patient(credentials_in: PatientLogin) -> JSONResponse:
+def login_patient(credentials_in: PatientLogin, db: Session) -> JSONResponse:
     
     # Clean input data
     credentials_in.cpf = credentials_in.cpf.strip()
@@ -98,11 +99,11 @@ def login_patient(credentials_in: PatientLogin) -> JSONResponse:
             content={"detail": cpf_error}
         )
     
+    # Inicializa o Repositório
+    repository = PatientRepository(db)
+
     # 401 Unauthorized: Find user by CPF
-    patient_record = next(
-        (p for p in FAKE_PATIENTS_DB if p.get("cpf") == credentials_in.cpf),
-        None
-    )
+    patient_record = repository.find_by_cpf(credentials_in.cpf)
     if not patient_record:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -110,13 +111,13 @@ def login_patient(credentials_in: PatientLogin) -> JSONResponse:
         )
 
     # 401 Unauthorized: Password verification
-    if not verify_password(credentials_in.password, patient_record.get("password")):
+    if not verify_password(credentials_in.password, patient_record.password):
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={"detail": "Invalid credentials."}
         )
 
-    access_token = create_access_token(subject=patient_record["cpf"], user_type="patient")
+    access_token = create_access_token(subject=patient_record.cpf, user_type="patient")
 
     # 200 Successful Response
     return JSONResponse(
@@ -130,7 +131,7 @@ def login_patient(credentials_in: PatientLogin) -> JSONResponse:
 
 # --- DOCTOR LOGIC ---
 
-def create_doctor(doctor_in: DoctorCreate) -> JSONResponse:
+def create_doctor(doctor_in: DoctorCreate, db: Session) -> JSONResponse:
     
     # Clean input data
     doctor_in.name = doctor_in.name.upper().strip()
@@ -170,34 +171,32 @@ def create_doctor(doctor_in: DoctorCreate) -> JSONResponse:
             content={"detail": password_error}
         )
      
+    # Inicializa o Repositório
+    repository = DoctorRepository(db)
+
     # 409 Conflict: CPF duplication
-    if any(p.get("cpf") == doctor_in.cpf for p in FAKE_DOCTORS_DB):
+    if repository.find_by_cpf(doctor_in.cpf):
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={"detail": "CPF already registered."}
         )
     
     # 409 Conflict: CRM duplication
-    if any(d.get("crm") == doctor_in.crm for d in FAKE_DOCTORS_DB):
+    if repository.find_by_crm(doctor_in.crm):
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
             content={"detail": "CRM already registered."}
         )
         
     # Persist Data
-    doctor_data = {
-        "cpf": doctor_in.cpf,
-        "name": doctor_in.name,
-        "crm": doctor_in.crm,
-        "password": get_password_hash(doctor_in.password) 
-    }
-    FAKE_DOCTORS_DB.append(doctor_data)
+    hashed_password = get_password_hash(doctor_in.password)
+    new_doctor = repository.create(doctor_in, hashed_password)
     
     # Prepare Response Model
     response_data = DoctorResponse(
-        cpf=doctor_data["cpf"], 
-        name=doctor_data["name"], 
-        crm=doctor_data["crm"]
+        cpf=new_doctor.cpf, 
+        name=new_doctor.name, 
+        crm=new_doctor.crm
     )
 
     # 201 Successful Response
@@ -207,7 +206,7 @@ def create_doctor(doctor_in: DoctorCreate) -> JSONResponse:
     )
 
 
-def login_doctor(credentials_in: DoctorLogin) -> JSONResponse:
+def login_doctor(credentials_in: DoctorLogin, db: Session) -> JSONResponse:
     
     # Clean input data
     credentials_in.crm = credentials_in.crm.strip()
@@ -221,11 +220,11 @@ def login_doctor(credentials_in: DoctorLogin) -> JSONResponse:
             content={"detail": crm_error}
         )
 
+    # Inicializa o Repositório
+    repository = DoctorRepository(db)
+
     # 401 Unauthorized: Find user by CRM
-    doctor_record = next(
-        (d for d in FAKE_DOCTORS_DB if d.get("crm") == credentials_in.crm),
-        None
-    )
+    doctor_record = repository.find_by_crm(credentials_in.crm)
     if not doctor_record:
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -233,13 +232,13 @@ def login_doctor(credentials_in: DoctorLogin) -> JSONResponse:
         )
 
     # 401 Unauthorized: Password verification
-    if not verify_password(credentials_in.password, doctor_record.get("password")):
+    if not verify_password(credentials_in.password, doctor_record.password):
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={"detail": "Invalid credentials."}
         )
 
-    access_token = create_access_token(subject=doctor_record["crm"], user_type="doctor")
+    access_token = create_access_token(subject=doctor_record.crm, user_type="doctor")
 
     # 200 Successful Response
     return JSONResponse(
