@@ -5,6 +5,6 @@ export const crmSchema = z
   .min(1, 'CRM is required')
   .trim()
   .toUpperCase()
-  .regex(/^\d{4,6}$/, {
-    message: 'CRM must contain 4 to 6 digits'
+  .regex(/^[A-Z]{2}\d{6}$/, {
+    message: 'CRM must be exactly 8 characters (2 letters for state and 6 digits, e.g., SP123456)'
   })

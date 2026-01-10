@@ -2,7 +2,6 @@
 import { sub, startOfDay, endOfDay } from 'date-fns'
 import type { Period, Range } from '~/types/dashboard'
 import type { TimeFilter } from '~/composables/useFitbitData'
-import type { TabsItem } from '@nuxt/ui/runtime/components/Tabs.vue.js'
 import { useDashboard } from '~/composables/useDashboard'
 
 definePageMeta({
@@ -13,6 +12,7 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const { user, isPatient, isDoctor } = useAuth()
+const { currentDateRange, isLoadingData, selectedPeriod } = useDashboard()
 const {
   isSimulationMode,
   toggleSimulation,
@@ -30,17 +30,18 @@ const isDoctorView = computed(() => isDoctor.value && patientId.value !== user.v
 
 const canEditSettings = computed(() => isPatient.value && patientId.value === user.value?.id)
 
-const range = shallowRef<Range>({
-  start: startOfDay(sub(new Date(), { days: 6 })),
-  end: endOfDay(new Date())
-})
-const period = ref<TimeFilter>('daily')
+const range = computed<Range>(() => ({
+  start: startOfDay(new Date(currentDateRange.value.start)),
+  end: endOfDay(new Date(currentDateRange.value.end))
+}))
 
-const periodTabs: TabsItem[] = [
-  { label: 'Diário', value: 'daily' },
-  { label: 'Semanal', value: 'weekly' },
-  { label: 'Mensal', value: 'monthly' }
-]
+// Mapeia o período do filtro para o TimeFilter usado nos gráficos
+const period = computed<TimeFilter>(() => {
+  if (selectedPeriod.value === 'day') return 'daily'
+  if (selectedPeriod.value === 'week') return 'weekly'
+  if (selectedPeriod.value === 'month') return 'monthly'
+  return 'daily' // custom usa daily como fallback
+})
 
 const handleExport = () => {
   router.push('/dashboard/export')
@@ -53,7 +54,6 @@ const caloriesData = computed(() => getCaloriesData(range.value.start, range.val
 
 const stats = computed(() => getStats(range.value.start, range.value.end))
 
-const loading = ref(false)
 const hasData = computed(() =>
   isSimulationMode.value && (
     stepsData.value.length > 0 ||
@@ -66,19 +66,19 @@ const showInsufficientDataWarning = computed(() =>
   isSimulationMode.value && hasInsufficientData(range.value.start, range.value.end, period.value)
 )
 
-onMounted(() => {
-  if (isPatient.value && user.value && patientId.value !== user.value.id) {
-    navigateTo(`/dashboard/${user.value.id}`)
-  }
-})
+// Ativa simulação automaticamente para demonstração (médicos vendo pacientes ou pacientes vendo próprio dashboard)
+if (!isSimulationMode.value) {
+  toggleSimulation()
+}
 </script>
 
 <template>
   <UDashboardPanel id="patient-dashboard">
     <template #header>
-      <UDashboardNavbar :title="user?.name || 'Dashboard'" :ui="{ right: 'gap-3' }">
+      <UDashboardNavbar :title="isDoctorView ? 'Dashboard do Paciente' : (user?.name || 'Dashboard')"
+        :ui="{ right: 'gap-3' }">
         <template #leading>
-          <UButton v-if="isDoctorView" icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/dashboard"
+          <UButton v-if="isDoctorView" icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/patients"
             square />
           <UDashboardSidebarCollapse v-else />
         </template>
@@ -110,22 +110,29 @@ onMounted(() => {
 
       <UDashboardToolbar>
         <template #left>
-          <div class="flex items-center gap-3 w-full">
-            <UBadge v-if="isDoctorView" color="info" variant="subtle">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full">
+            <UBadge v-if="isDoctorView" color="info" variant="subtle" class="shrink-0">
               <UIcon name="i-lucide-eye" class="size-4 mr-1" />
               Modo Visualização
             </UBadge>
 
-            <DashboardHomeDateRangePicker v-model="range" />
-
-            <UTabs v-model="period" :items="periodTabs" />
+            <DashboardFilterBar />
           </div>
         </template>
       </UDashboardToolbar>
     </template>
 
     <template #body>
-      <div v-if="!hasData" class="p-6">
+      <div v-if="isLoadingData" class="p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          <USkeleton v-for="i in 4" :key="i" class="h-32" />
+        </div>
+        <div class="space-y-6">
+          <USkeleton v-for="i in 3" :key="i" class="h-96" />
+        </div>
+      </div>
+
+      <div v-else-if="!hasData" class="p-6">
         <UCard>
           <div class="flex flex-col items-center gap-4 py-12">
             <UIcon name="i-lucide-database" class="size-16 text-muted" />
