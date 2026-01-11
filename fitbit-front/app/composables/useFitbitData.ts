@@ -442,20 +442,20 @@ export const useFitbitData = () => {
     return false
   }
 
-return {
-  isSimulationMode,
-  isFitbitMode,
-  lastSyncTime,
-  enableFitbitMode,
-  enableSimulationMode,
-  toggleSimulation,
-  fetchFitbitData,
-  syncFitbitData,
-  getStepsData,
-  getHeartRateData,
-  getSleepData,
-  getCaloriesData,
-  getStats,
-  hasInsufficientData
-}
+  return {
+    isSimulationMode,
+    isFitbitMode,
+    lastSyncTime,
+    enableFitbitMode,
+    enableSimulationMode,
+    toggleSimulation,
+    fetchFitbitData,
+    syncFitbitData,
+    getStepsData,
+    getHeartRateData,
+    getSleepData,
+    getCaloriesData,
+    getStats,
+    hasInsufficientData
+  }
 }
