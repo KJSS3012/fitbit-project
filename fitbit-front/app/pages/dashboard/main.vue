@@ -147,7 +147,7 @@ onMounted(async () => {
   await fetchUser()
   await checkFitbitStatus()
   await refreshData()
-  
+
   // Check for stale sleep data on mount
   if (isFitbitConnected.value) {
     await checkSleepDataFreshness('7d')

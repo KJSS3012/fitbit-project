@@ -166,22 +166,22 @@ describe('useFitbitData - Sleep Data Freshness Check', () => {
   it('deve mostrar toast quando sleep data > 15 dias', async () => {
     const { checkSleepDataFreshness } = useFitbitData()
 
-    ; (global as any).$fetch = vi.fn().mockResolvedValue({
-      period: '7d',
-      days_analyzed: 7,
-      steps_total: 50000,
-      steps_average: 7142,
-      steps_max: 12000,
-      hr_average: 72,
-      hr_min: 60,
-      hr_max: 85,
-      sleep_total_hours: 50.5,
-      sleep_average_hours: 7.2,
-      calories_total: 14000,
-      calories_average: 2000,
-      last_data_date: '2025-12-10',
-      days_since_last_data: 20 // > 15 days
-    })
+      ; (global as any).$fetch = vi.fn().mockResolvedValue({
+        period: '7d',
+        days_analyzed: 7,
+        steps_total: 50000,
+        steps_average: 7142,
+        steps_max: 12000,
+        hr_average: 72,
+        hr_min: 60,
+        hr_max: 85,
+        sleep_total_hours: 50.5,
+        sleep_average_hours: 7.2,
+        calories_total: 14000,
+        calories_average: 2000,
+        last_data_date: '2025-12-10',
+        days_since_last_data: 20 // > 15 days
+      })
 
     await checkSleepDataFreshness('7d')
 
@@ -197,12 +197,12 @@ describe('useFitbitData - Sleep Data Freshness Check', () => {
   it('NÃO deve mostrar toast quando sleep data <= 15 dias', async () => {
     const { checkSleepDataFreshness } = useFitbitData()
 
-    ; (global as any).$fetch = vi.fn().mockResolvedValue({
-      period: '7d',
-      days_analyzed: 7,
-      last_data_date: '2026-01-05',
-      days_since_last_data: 6 // <= 15 days, OK
-    })
+      ; (global as any).$fetch = vi.fn().mockResolvedValue({
+        period: '7d',
+        days_analyzed: 7,
+        last_data_date: '2026-01-05',
+        days_since_last_data: 6 // <= 15 days, OK
+      })
 
     await checkSleepDataFreshness('7d')
 
