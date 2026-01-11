@@ -14,12 +14,16 @@ build/
 dist/
 *.log
 
-# FastAPI specific
-*.db
-*.sqlite3
+# Project specific persistence (Sensitive Data)
+patients_data.json
 
 # Environment variables
 .env
+.env.local
+
+# FastAPI specific
+*.db
+*.sqlite3
 
 # IDEs
 .vscode/
