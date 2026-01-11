@@ -19,3 +19,37 @@ class PatientRepository:
 
     def find_by_cpf(self, cpf: str) -> Patient | None:
         return self.db.query(Patient).filter(Patient.cpf == cpf).first()
+    
+    def update_fitbit_tokens(
+        self, 
+        cpf: str, 
+        access_token: str, 
+        refresh_token: str, 
+        expires_at: float
+    ) -> Patient | None:
+        """Update Fitbit OAuth tokens for a patient."""
+        patient = self.find_by_cpf(cpf)
+        if not patient:
+            return None
+        
+        patient.fitbit_access_token = access_token
+        patient.fitbit_refresh_token = refresh_token
+        patient.fitbit_expires_at = expires_at
+        
+        self.db.commit()
+        self.db.refresh(patient)
+        return patient
+    
+    def remove_fitbit_tokens(self, cpf: str) -> Patient | None:
+        """Remove Fitbit tokens (disconnect)."""
+        patient = self.find_by_cpf(cpf)
+        if not patient:
+            return None
+        
+        patient.fitbit_access_token = None
+        patient.fitbit_refresh_token = None
+        patient.fitbit_expires_at = None
+        
+        self.db.commit()
+        self.db.refresh(patient)
+        return patient

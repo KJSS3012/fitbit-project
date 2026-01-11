@@ -66,6 +66,46 @@ describe('useFitbitAuth', () => {
 
     expect(mockFitbitConnected.value).toBe(true)
     expect(mockRouter.replace).toHaveBeenCalledWith({ query: {} })
+    expect(mockToast.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Fitbit conectado com sucesso!',
+        color: 'success'
+      })
+    )
+  })
+
+  it('deve detectar negação do usuário via query param', async () => {
+    mockRoute.query = { fitbit: 'denied' }
+    const { checkFitbitStatus } = useFitbitAuth()
+
+    await checkFitbitStatus()
+
+    expect(mockFitbitConnected.value).toBe(false)
+    expect(mockFitbitConnecting.value).toBe(false)
+    expect(mockRouter.replace).toHaveBeenCalledWith({ query: {} })
+    expect(mockToast.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Conexão cancelada pelo usuário',
+        color: 'warning'
+      })
+    )
+  })
+
+  it('deve detectar erro de servidor via query param', async () => {
+    mockRoute.query = { fitbit: 'error' }
+    const { checkFitbitStatus } = useFitbitAuth()
+
+    await checkFitbitStatus()
+
+    expect(mockFitbitConnected.value).toBe(false)
+    expect(mockFitbitConnecting.value).toBe(false)
+    expect(mockRouter.replace).toHaveBeenCalledWith({ query: {} })
+    expect(mockToast.add).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Erro ao finalizar conexão',
+        color: 'error'
+      })
+    )
   })
 
   it('deve buscar status da API quando há token', async () => {

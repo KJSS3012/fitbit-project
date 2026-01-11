@@ -37,7 +37,7 @@ Base.metadata.create_all(bind=engine)
 # ---------------- APP SETUP ----------------
 
 app = FastAPI()
-app.include_router(router)
+app.include_router(router, prefix="/dashboard")
 
 def override_get_db():
     db = TestingSessionLocal()
@@ -82,7 +82,7 @@ def client():
 
 def test_get_metrics_predefined_weekly(client, patient_token):
     response = client.get(
-        "/metrics?period=weekly",
+        "/dashboard/metrics?period=weekly",
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 200
@@ -103,7 +103,7 @@ def test_get_metrics_custom_period_success(client, patient_token):
         return_value=mock_data
     ):
         response = client.get(
-            "/metrics?period=custom&start_date=2026-01-01&end_date=2026-01-05",
+            "/dashboard/metrics?period=custom&start_date=2026-01-01&end_date=2026-01-05",
             headers={"Authorization": f"Bearer {patient_token}"}
         )
 
@@ -114,7 +114,7 @@ def test_get_metrics_custom_period_success(client, patient_token):
 
 def test_get_metrics_invalid_chronology(client, patient_token):
     response = client.get(
-        "/metrics?period=custom&start_date=2026-01-10&end_date=2026-01-01",
+        "/dashboard/metrics?period=custom&start_date=2026-01-10&end_date=2026-01-01",
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 400
@@ -123,7 +123,7 @@ def test_get_metrics_invalid_chronology(client, patient_token):
 
 def test_get_metrics_missing_dates_for_custom(client, patient_token):
     response = client.get(
-        "/metrics?period=custom",
+        "/dashboard/metrics?period=custom",
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 400
@@ -132,7 +132,7 @@ def test_get_metrics_missing_dates_for_custom(client, patient_token):
 
 def test_get_metrics_future_date_error(client, patient_token):
     response = client.get(
-        "/metrics?period=custom&start_date=2026-01-01&end_date=2029-12-31",
+        "/dashboard/metrics?period=custom&start_date=2026-01-01&end_date=2029-12-31",
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 400
@@ -141,7 +141,7 @@ def test_get_metrics_future_date_error(client, patient_token):
 
 def test_get_metrics_performance_limit(client, patient_token):
     response = client.get(
-        "/metrics?period=custom&start_date=2024-01-01&end_date=2025-05-01",
+        "/dashboard/metrics?period=custom&start_date=2024-01-01&end_date=2025-05-01",
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 400
@@ -150,7 +150,7 @@ def test_get_metrics_performance_limit(client, patient_token):
 
 def test_get_metrics_invalid_period_regex(client, patient_token):
     response = client.get(
-        "/metrics?period=yearly",
+        "/dashboard/metrics?period=yearly",
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 422

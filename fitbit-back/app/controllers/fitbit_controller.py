@@ -7,14 +7,11 @@ from typing import Dict
 from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import RedirectResponse
 from urllib.parse import urlencode
+from sqlalchemy.orm import Session
 
-from app.models.mock import FAKE_PATIENTS_DB
-from app.core.fitbit_client import (
-    get_auth_header,
-    get_valid_token,
-    save_persistence,
-    load_persistence,
-)
+from app.database.connection import get_db
+from app.repositories.patient_repository import PatientRepository
+from app.core.fitbit_client import get_auth_header
 from app.core.security import get_current_user_cpf
 
 router = APIRouter()
@@ -28,10 +25,15 @@ FITBIT_TOKEN_URL = "https://api.fitbit.com/oauth2/token"
 # =========================
 # Helpers
 # =========================
-def fitbit_get(endpoint: str, cpf: str):
-    token = get_valid_token(cpf)
-    headers = {"Authorization": f"Bearer {token}"}
-
+def fitbit_get(endpoint: str, cpf: str, db: Session):
+    """Make authenticated request to Fitbit API."""
+    patient_repo = PatientRepository(db)
+    patient = patient_repo.find_by_cpf(cpf)
+    
+    if not patient or not patient.fitbit_access_token:
+        raise HTTPException(status_code=401, detail="Fitbit não conectado")
+    
+    headers = {"Authorization": f"Bearer {patient.fitbit_access_token}"}
     response = requests.get(endpoint, headers=headers)
     response.raise_for_status()
     return response.json()
@@ -56,8 +58,27 @@ def auth(cpf: str):
 
 
 @router.get("/callback")
-def callback(code: str = Query(...), state: str = Query(...)):
+def callback(
+    code: str = Query(None), 
+    error: str = Query(None), 
+    state: str = Query(...),
+    db: Session = Depends(get_db)
+):
     """Exchange authorization code for tokens and persist them."""
+    frontend_url = "http://localhost:3000/dashboard/settings/fitbit"
+    
+    # Usuário negou acesso
+    if error == "access_denied":
+        return RedirectResponse(f"{frontend_url}?fitbit=denied")
+    
+    # Outro erro OAuth
+    if error:
+        return RedirectResponse(f"{frontend_url}?fitbit=error")
+    
+    # Sem code = erro
+    if not code:
+        return RedirectResponse(f"{frontend_url}?fitbit=error")
+    
     target_cpf = state
 
     data = {
@@ -66,47 +87,85 @@ def callback(code: str = Query(...), state: str = Query(...)):
         "code": code,
     }
 
-    resp = requests.post(FITBIT_TOKEN_URL, headers=get_auth_header(), data=data)
-    if resp.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to get token from Fitbit")
+    try:
+        resp = requests.post(FITBIT_TOKEN_URL, headers=get_auth_header(), data=data)
+        if resp.status_code != 200:
+            return RedirectResponse(f"{frontend_url}?fitbit=error")
 
-    token_data = resp.json()
+        token_data = resp.json()
+    except Exception:
+        return RedirectResponse(f"{frontend_url}?fitbit=error")
 
-    load_persistence()
-
-    user = next((p for p in FAKE_PATIENTS_DB if p.get("cpf") == target_cpf), None)
-    if not user:
-        user = {"cpf": target_cpf}
-        FAKE_PATIENTS_DB.append(user)
-
-    user.update(
-        {
-            "fitbit_access_token": token_data["access_token"],
-            "fitbit_refresh_token": token_data.get("refresh_token"),
-            "fitbit_expires_at": time.time()
-            + token_data.get("expires_in", 3600),
-        }
+    # Salva tokens no banco de dados
+    patient_repo = PatientRepository(db)
+    patient = patient_repo.update_fitbit_tokens(
+        cpf=target_cpf,
+        access_token=token_data["access_token"],
+        refresh_token=token_data.get("refresh_token", ""),
+        expires_at=time.time() + token_data.get("expires_in", 3600)
     )
+    
+    if not patient:
+        return RedirectResponse(f"{frontend_url}?fitbit=error")
 
-    save_persistence()
     return RedirectResponse("http://localhost:3000/dashboard/main?fitbit=connected")
+
+
+# =========================
+# Connection Management
+# =========================
+@router.get("/status")
+def fitbit_status(
+    cpf: str = Depends(get_current_user_cpf),
+    db: Session = Depends(get_db)
+):
+    """Check if user has connected Fitbit account."""
+    patient_repo = PatientRepository(db)
+    patient = patient_repo.find_by_cpf(cpf)
+    
+    if not patient or not patient.fitbit_access_token:
+        return {"connected": False}
+    
+    return {
+        "connected": True,
+        "scopes": ["activity", "heartrate", "sleep", "profile"]
+    }
+
+
+@router.post("/disconnect")
+def disconnect_fitbit(
+    cpf: str = Depends(get_current_user_cpf),
+    db: Session = Depends(get_db)
+):
+    """Disconnect Fitbit account by removing tokens."""
+    patient_repo = PatientRepository(db)
+    patient = patient_repo.remove_fitbit_tokens(cpf)
+    
+    if not patient:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    
+    return {"message": "Fitbit desconectado com sucesso"}
 
 
 # =========================
 # Fitbit Endpoints (JWT required)
 # =========================
 @router.get("/profile")
-def profile(cpf: str = Depends(get_current_user_cpf)):
-    return fitbit_get(f"{FITBIT_API_BASE_URL}/profile.json", cpf)
+def profile(
+    cpf: str = Depends(get_current_user_cpf),
+    db: Session = Depends(get_db)
+):
+    return fitbit_get(f"{FITBIT_API_BASE_URL}/profile.json", cpf, db)
 
 
 @router.get("/activity")
 def activity(
     day: str = date.today().isoformat(),
     cpf: str = Depends(get_current_user_cpf),
+    db: Session = Depends(get_db)
 ):
     return fitbit_get(
-        f"{FITBIT_API_BASE_URL}/activities/date/{day}.json", cpf
+        f"{FITBIT_API_BASE_URL}/activities/date/{day}.json", cpf, db
     )
 
 
@@ -114,9 +173,10 @@ def activity(
 def heartrate(
     day: str = date.today().isoformat(),
     cpf: str = Depends(get_current_user_cpf),
+    db: Session = Depends(get_db)
 ):
     return fitbit_get(
-        f"{FITBIT_API_BASE_URL}/activities/heart/date/{day}/1d.json", cpf
+        f"{FITBIT_API_BASE_URL}/activities/heart/date/{day}/1d.json", cpf, db
     )
 
 
@@ -124,9 +184,10 @@ def heartrate(
 def sleep(
     day: str = date.today().isoformat(),
     cpf: str = Depends(get_current_user_cpf),
+    db: Session = Depends(get_db)
 ):
     return fitbit_get(
-        f"{FITBIT_API_BASE_URL}/sleep/date/{day}.json", cpf
+        f"{FITBIT_API_BASE_URL}/sleep/date/{day}.json", cpf, db
     )
 
 
@@ -134,16 +195,17 @@ def sleep(
 def dashboard(
     day: str = date.today().isoformat(),
     cpf: str = Depends(get_current_user_cpf),
+    db: Session = Depends(get_db)
 ):
     return {
-        "profile": fitbit_get(f"{FITBIT_API_BASE_URL}/profile.json", cpf),
+        "profile": fitbit_get(f"{FITBIT_API_BASE_URL}/profile.json", cpf, db),
         "activity": fitbit_get(
-            f"{FITBIT_API_BASE_URL}/activities/date/{day}.json", cpf
+            f"{FITBIT_API_BASE_URL}/activities/date/{day}.json", cpf, db
         ),
         "heartrate": fitbit_get(
-            f"{FITBIT_API_BASE_URL}/activities/heart/date/{day}/1d.json", cpf
+            f"{FITBIT_API_BASE_URL}/activities/heart/date/{day}/1d.json", cpf, db
         ),
         "sleep": fitbit_get(
-            f"{FITBIT_API_BASE_URL}/sleep/date/{day}.json", cpf
+            f"{FITBIT_API_BASE_URL}/sleep/date/{day}.json", cpf, db
         ),
     }
