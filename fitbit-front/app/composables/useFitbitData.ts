@@ -109,12 +109,18 @@ export const useFitbitData = () => {
         lastSyncTime.value = new Date()
         realFitbitData.value = data
         return data
-      } catch (error) {
+      } catch (error: any) {
+        // Check for 401 token expiration
+        if (error?.response?.status === 401 || error?.status === 401) {
+          throw new Error('Conexão Fitbit expirou. Reconecte sua conta')
+        }
+
         // Return cached data on error if available
         if (cached) {
           return cached.data
         }
-        return null
+
+        throw new Error('Falha ao sincronizar. Verifique sua conexão')
       } finally {
         // Clean up pending request
         delete pendingRequests.value[date]
@@ -124,6 +130,77 @@ export const useFitbitData = () => {
     // Store pending request
     pendingRequests.value[date] = request
     return request
+  }
+
+  /**
+   * Synchronize Fitbit data and persist to database
+   */
+  const syncFitbitData = async (date: string = format(new Date(), 'yyyy-MM-dd')): Promise<boolean> => {
+    if (!isFitbitConnected.value || !token.value) {
+      throw new Error('Fitbit não está conectado')
+    }
+
+    const toast = useToast()
+
+    try {
+      const response = await $fetch<{
+        success: boolean
+        message: string
+        data: any
+      }>(`${API_BASE_URL}/fitbit/sync`, {
+        method: 'POST',
+        params: { day: date },
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      })
+
+      // Update last sync time
+      lastSyncTime.value = new Date()
+
+      // Clear cache to force refresh
+      delete requestCache.value[date]
+
+      // Show success toast
+      toast.add({
+        title: 'Sincronização completa',
+        description: 'Dados atualizados com sucesso',
+        color: 'success',
+        icon: 'i-heroicons-check-circle'
+      })
+
+      return response.success
+    } catch (error: any) {
+      // Handle specific error cases
+      if (error?.response?.status === 401 || error?.status === 401) {
+        const detail = error?.data?.detail || error?.response?.data?.detail || ''
+        if (detail.includes('expirou')) {
+          toast.add({
+            title: 'Conexão expirada',
+            description: 'Conexão Fitbit expirou. Reconecte sua conta',
+            color: 'error',
+            icon: 'i-heroicons-exclamation-circle'
+          })
+          throw new Error('Conexão Fitbit expirou. Reconecte sua conta')
+        }
+        toast.add({
+          title: 'Não conectado',
+          description: 'Fitbit não está conectado',
+          color: 'warning',
+          icon: 'i-heroicons-exclamation-triangle'
+        })
+        throw new Error('Fitbit não está conectado')
+      }
+
+      toast.add({
+        title: 'Falha na sincronização',
+        description: 'Falha ao sincronizar dados. Verifique sua conexão',
+        color: 'error',
+        icon: 'i-heroicons-x-circle'
+      })
+
+      throw new Error('Falha ao sincronizar dados. Verifique sua conexão')
+    }
   }
 
   const filterByDateRange = <T extends { dateTime?: string; dateOfSleep?: string }>(
@@ -336,7 +413,7 @@ export const useFitbitData = () => {
         totalHours: Math.round(sleepData.reduce((sum, item) => sum + item.value, 0) / 60),
         averageHours: sleepData.length > 0
           ? (sleepData.reduce((sum, item) => sum + item.value, 0) / sleepData.length / 60).toFixed(1)
-          : 0
+          : '0'
       },
       calories: {
         total: caloriesData.reduce((sum, item) => sum + item.value, 0),
@@ -365,19 +442,20 @@ export const useFitbitData = () => {
     return false
   }
 
-  return {
-    isSimulationMode,
-    isFitbitMode,
-    lastSyncTime,
-    enableFitbitMode,
-    enableSimulationMode,
-    toggleSimulation,
-    fetchFitbitData,
-    getStepsData,
-    getHeartRateData,
-    getSleepData,
-    getCaloriesData,
-    getStats,
-    hasInsufficientData
-  }
+return {
+  isSimulationMode,
+  isFitbitMode,
+  lastSyncTime,
+  enableFitbitMode,
+  enableSimulationMode,
+  toggleSimulation,
+  fetchFitbitData,
+  syncFitbitData,
+  getStepsData,
+  getHeartRateData,
+  getSleepData,
+  getCaloriesData,
+  getStats,
+  hasInsufficientData
+}
 }
