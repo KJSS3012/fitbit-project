@@ -62,9 +62,8 @@ const notifications = ref<Notification[]>([
 <template>
   <USlideover v-model:open="isNotificationsSlideoverOpen" title="Notificações">
     <template #body>
-      <NuxtLink v-for="notification in notifications" :key="notification.id"
-        :to="`/dashboard/patients?id=${notification.id}`"
-        class="px-3 py-2.5 rounded-md hover:bg-elevated/50 flex items-center gap-3 relative -mx-3 first:-mt-3 last:-mb-3">
+      <div v-for="notification in notifications" :key="notification.id"
+        class="px-3 py-2.5 rounded-md hover:bg-elevated/50 flex items-center gap-3 relative -mx-3 first:-mt-3 last:-mb-3 cursor-pointer">
         <UChip color="error" :show="!!notification.unread" inset>
           <UAvatar v-bind="notification.sender.avatar" :alt="notification.sender.name" size="md" />
         </UChip>
@@ -81,7 +80,7 @@ const notifications = ref<Notification[]>([
             {{ notification.body }}
           </p>
         </div>
-      </NuxtLink>
+      </div>
     </template>
   </USlideover>
 </template>

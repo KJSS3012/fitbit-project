@@ -87,15 +87,21 @@ const isFormValid = computed(() => {
 
       <template #body>
         <div class="space-y-4">
-          <UFormGroup label="Data Inicial" name="startDate" required>
-            <UInput v-model="startDate" type="date" icon="i-lucide-calendar" placeholder="Selecione a data inicial"
-              aria-label="Selecione a data inicial" />
-          </UFormGroup>
+          <div class="space-y-2">
+            <label for="startDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Data Inicial <span class="text-red-500">*</span>
+            </label>
+            <UInput id="startDate" v-model="startDate" type="date" icon="i-lucide-calendar"
+              placeholder="Selecione a data inicial" aria-label="Selecione a data inicial" />
+          </div>
 
-          <UFormGroup label="Data Final" name="endDate" required>
-            <UInput v-model="endDate" type="date" icon="i-lucide-calendar" placeholder="Selecione a data final"
-              aria-label="Selecione a data final" />
-          </UFormGroup>
+          <div class="space-y-2">
+            <label for="endDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Data Final <span class="text-red-500">*</span>
+            </label>
+            <UInput id="endDate" v-model="endDate" type="date" icon="i-lucide-calendar"
+              placeholder="Selecione a data final" aria-label="Selecione a data final" />
+          </div>
         </div>
       </template>
 

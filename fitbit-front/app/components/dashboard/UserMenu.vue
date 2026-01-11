@@ -7,18 +7,26 @@ defineProps<{
 
 const colorMode = useColorMode()
 const appConfig = useAppConfig()
-const { logout } = useAuth()
+const { logout, user: authUser } = useAuth()
 
 const colors = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 'violet', 'purple', 'fuchsia', 'pink', 'rose']
 const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
 
-const user = ref({
-  name: 'Usuário',
-  avatar: {
-    src: 'https://api.dicebear.com/7.x/avataaars/svg?seed=user',
-    alt: 'Usuário'
-  }
+/**
+ * Extracts first name from full name
+ */
+const firstName = computed(() => {
+  const fullName = authUser.value?.name || 'Usuário'
+  return fullName.split(' ')[0]
 })
+
+const user = computed(() => ({
+  name: firstName.value,
+  avatar: {
+    src: `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName.value}`,
+    alt: firstName.value
+  }
+}))
 
 const items = computed<DropdownMenuItem[][]>(() => ([[{
   type: 'label',
@@ -119,8 +127,8 @@ const items = computed<DropdownMenuItem[][]>(() => ([[{
       label: collapsed ? undefined : user?.name,
       trailingIcon: collapsed ? undefined : 'i-lucide-chevrons-up-down'
     }" color="neutral" variant="ghost" block :square="collapsed" class="data-[state=open]:bg-elevated" :ui="{
-        trailingIcon: 'text-dimmed'
-      }" />
+      trailingIcon: 'text-dimmed'
+    }" />
 
     <template #chip-leading="{ item }">
       <div class="inline-flex items-center justify-center shrink-0 size-5">

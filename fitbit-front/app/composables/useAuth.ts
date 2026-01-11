@@ -21,6 +21,7 @@ export interface RegisterData {
 export const useAuth = () => {
   const config = useRuntimeConfig()
   const user = useState<User | null>('user', () => null)
+  const isLoading = useState('auth-loading', () => false)
   const token = useCookie('auth_token', {
     maxAge: 60 * 60 * 24 * 7 // 7 dias
   })
@@ -133,27 +134,42 @@ export const useAuth = () => {
   }
 
   /**
-   * Fetches authenticated user data from token
+   * Fetches authenticated user data from API
    */
   const fetchUser = async () => {
     if (!token.value) {
+      isLoading.value = false
       return null
     }
 
-    const decoded = decodeToken(token.value)
+    isLoading.value = true
 
-    if (decoded) {
+    try {
+      const userData = await $fetch<{ id: string; name: string; type: string }>(
+        `${API_BASE_URL}/user/me`,
+        {
+          headers: {
+            Authorization: `Bearer ${token.value}`
+          }
+        }
+      )
+
       user.value = {
-        id: decoded.sub,
-        name: '',
-        email: `${decoded.sub}@example.com`,
-        type: decoded.type === 'patient' ? 'paciente' : 'medico'
+        id: userData.id,
+        name: userData.name,
+        email: `${userData.id}@pulselink.com`,
+        type: userData.type === 'patient' ? 'paciente' : 'medico'
       }
-      return user.value
-    }
 
-    token.value = null
-    return null
+      return user.value
+    } catch (error) {
+      console.error('Error fetching user:', error)
+      token.value = null
+      user.value = null
+      return null
+    } finally {
+      isLoading.value = false
+    }
   }
 
   const isAuthenticated = computed(() => !!token.value)
@@ -163,6 +179,7 @@ export const useAuth = () => {
   return {
     user: readonly(user),
     token: readonly(token),
+    isLoading: readonly(isLoading),
     isAuthenticated,
     isDoctor,
     isPatient,

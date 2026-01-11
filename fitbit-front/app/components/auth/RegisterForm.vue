@@ -8,8 +8,8 @@ const { register } = useAuth()
 const toast = useToast()
 
 const tabs: TabsItem[] = [
-  { label: 'Patient', value: 'paciente' },
-  { label: 'Doctor', value: 'medico' }
+  { label: 'Paciente', value: 'paciente' },
+  { label: 'Médico', value: 'medico' }
 ]
 
 const { handleSubmit, errors, isSubmitting } = useForm({
@@ -54,8 +54,8 @@ const submitHandler = handleSubmit(async (values) => {
     })
 
     toast.add({
-      title: 'Account created successfully',
-      description: 'Redirecting to login...',
+      title: 'Conta criada com sucesso',
+      description: 'Redirecionando para o login...',
       color: 'success',
       icon: 'i-heroicons-check-circle'
     })
@@ -63,8 +63,8 @@ const submitHandler = handleSubmit(async (values) => {
     setTimeout(() => navigateTo('/auth/login'), 1500)
   } catch (err: any) {
     toast.add({
-      title: 'Account creation failed',
-      description: err?.message || 'Please try again later',
+      title: 'Falha ao criar conta',
+      description: err?.message || 'Tente novamente mais tarde',
       color: 'error',
       icon: 'i-heroicons-x-circle'
     })
@@ -80,9 +80,9 @@ const onSubmit = async () => {
   <UCard class="w-full max-w-md">
     <template #header>
       <div class="text-center space-y-1">
-        <h2 class="text-2xl font-semibold">Create Account</h2>
+        <h2 class="text-2xl font-semibold">Criar Conta</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400">
-          Register to get started
+          Cadastre-se para começar
         </p>
       </div>
     </template>
@@ -92,7 +92,7 @@ const onSubmit = async () => {
     <UForm class="space-y-4" @submit="onSubmit">
       <Transition name="fade-slide" mode="out-in">
         <div :key="userType" class="space-y-4">
-          <UFormField label="Full Name" required :error="errors.name">
+          <UFormField label="Nome Completo" required :error="errors.name">
             <UInput v-model="name" size="lg" class="w-full" />
           </UFormField>
 
@@ -106,30 +106,30 @@ const onSubmit = async () => {
         </div>
       </Transition>
 
-      <UFormField label="Password" required :error="errors.password">
+      <UFormField label="Senha" required :error="errors.password">
         <UInput v-model="password" type="password" size="lg" class="w-full" />
       </UFormField>
 
-      <UFormField label="Confirm Password" required :error="errors.confirmPassword">
+      <UFormField label="Confirmar Senha" required :error="errors.confirmPassword">
         <UInput v-model="confirmPassword" type="password" size="lg" class="w-full" />
       </UFormField>
 
       <div class="space-y-1">
-        <UCheckbox v-model="acceptTerms" label="I accept the terms of use" />
+        <UCheckbox v-model="acceptTerms" label="Aceito os termos de uso" />
         <p v-if="errors.acceptTerms" class="text-sm text-red-500">
           {{ errors.acceptTerms }}
         </p>
       </div>
 
       <UButton type="submit" block size="lg" :loading="isSubmitting" :disabled="isSubmitting">
-        Create Account
+        Criar Conta
       </UButton>
     </UForm>
     <template #footer>
       <div class="text-center text-sm text-gray-500">
-        Already have an account?
+        Já tem uma conta?
         <UButton variant="link" size="sm" :padded="false" @click="navigateTo('/auth/login')">
-          Sign in
+          Entrar
         </UButton>
       </div>
     </template>
