@@ -442,6 +442,58 @@ export const useFitbitData = () => {
     return false
   }
 
+  /**
+   * Fetches metrics summary from /dashboard/metrics/summary endpoint
+   * and checks for stale sleep data (>15 days).
+   * Shows toast notification if sleep data is outdated.
+   * 
+   * @param period - "7d" or "30d"
+   */
+  const checkSleepDataFreshness = async (period: '7d' | '30d' = '7d') => {
+    if (!isFitbitConnected.value || !token.value) {
+      return
+    }
+
+    try {
+      const summary = await $fetch<{
+        period: string
+        days_analyzed: number
+        steps_total: number
+        steps_average: number
+        steps_max: number
+        hr_average: number
+        hr_min: number
+        hr_max: number
+        sleep_total_hours: number
+        sleep_average_hours: number
+        calories_total: number
+        calories_average: number
+        last_data_date: string | null
+        days_since_last_data: number | null
+      }>(`${API_BASE_URL}/dashboard/metrics/summary`, {
+        params: { period },
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      })
+
+      // Check if sleep data is older than 15 days
+      if (summary.days_since_last_data !== null && summary.days_since_last_data > 15) {
+        const toast = useToast()
+        toast.add({
+          title: 'Dados de sono desatualizados',
+          description: 'Não há dados de sono recentes. Sincronize seu Fitbit para atualizar.',
+          color: 'warning',
+          icon: 'i-lucide-alert-triangle',
+          timeout: 8000
+        })
+      }
+    } catch (error) {
+      // Silently fail - this is a non-critical check
+      console.warn('Failed to check sleep data freshness:', error)
+    }
+  }
+
   return {
     isSimulationMode,
     isFitbitMode,
@@ -456,6 +508,7 @@ export const useFitbitData = () => {
     getSleepData,
     getCaloriesData,
     getStats,
-    hasInsufficientData
+    hasInsufficientData,
+    checkSleepDataFreshness
   }
 }

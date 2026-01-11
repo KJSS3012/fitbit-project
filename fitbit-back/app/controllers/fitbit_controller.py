@@ -13,6 +13,7 @@ from app.database.connection import get_db
 from app.repositories.patient_repository import PatientRepository
 from app.core.fitbit_client import get_auth_header
 from app.core.security import get_current_user_cpf
+from app.services.dashboard_service import get_cached_data
 
 router = APIRouter()
 
@@ -330,6 +331,9 @@ def sync_fitbit_data(
         # Save to database
         patient_repo = PatientRepository(db)
         saved_metrics = patient_repo.save_metrics(cpf, metrics_list)
+        
+        # Invalidate cache after successful sync
+        get_cached_data.cache_clear()
 
         return {
             "success": True,

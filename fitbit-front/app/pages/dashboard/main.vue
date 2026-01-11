@@ -26,7 +26,8 @@ const {
   getCaloriesData,
   getStats,
   hasInsufficientData,
-  fetchFitbitData
+  fetchFitbitData,
+  checkSleepDataFreshness
 } = useFitbitData()
 
 const {
@@ -146,6 +147,11 @@ onMounted(async () => {
   await fetchUser()
   await checkFitbitStatus()
   await refreshData()
+  
+  // Check for stale sleep data on mount
+  if (isFitbitConnected.value) {
+    await checkSleepDataFreshness('7d')
+  }
 })
 
 // Refresh when period or mode changes
