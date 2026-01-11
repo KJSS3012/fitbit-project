@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
-from app.models.mock import FitbitModel
+from app.models.mock import FitbitModel, FAKE_PATIENTS_DB
+from app.core.fitbit_client import get_valid_token, fetch_fitbit_data
 from fastapi import HTTPException
 from typing import Optional
 from functools import lru_cache
 
-# Implement cache for performance optimization on larger queries
 @lru_cache(maxsize=100)
 def get_cached_data(cpf: str, start_str: str, end_str: str):
     return FitbitModel.find_by_cpf_and_date(cpf, start_str, end_str)
@@ -51,11 +51,16 @@ def get_dashboard_metrics(
     start_str = calculated_start.strftime("%Y-%m-%d")
     end_str = calculated_end.strftime("%Y-%m-%d")
 
-    # Data Fetching with Cache
-    try:
-        raw_data = get_cached_data(cpf, start_str, end_str)
-    except AttributeError:
-        raise HTTPException(status_code=500, detail="Model method not implemented")
+    user = next((p for p in FAKE_PATIENTS_DB if p.get("cpf") == cpf), None)
+    
+    if user and user.get("fitbit_access_token"):
+        token = get_valid_token(cpf)
+        raw_data = fetch_fitbit_data(token, start_str, end_str)
+    else:
+        try:
+            raw_data = get_cached_data(cpf, start_str, end_str)
+        except AttributeError:
+            raise HTTPException(status_code=500, detail="Model method not implemented")
 
     # Validate minimum data volume
     validate_data_volume(raw_data, period)
@@ -63,10 +68,7 @@ def get_dashboard_metrics(
     if not raw_data:
         return {"activities-steps": [], "activities-heart": [], "sleep": []}
 
-    # Ensure chronological order for charts
     raw_data.sort(key=lambda x: x["date"])
-
-    # Aggregate data (Process averages/totals for Monthly/Weekly)
     processed_data = aggregate_metrics(raw_data, period)
 
     # Format Response (Fitbit Standard)
@@ -83,7 +85,6 @@ def get_dashboard_metrics(
     }
 
 def validate_data_volume(records: list, period: str):
-    """TA.2 - Ensures sufficient data volume for specific periods."""
     if period == "monthly" and len(records) < 7:
         raise HTTPException(
             status_code=400, 
