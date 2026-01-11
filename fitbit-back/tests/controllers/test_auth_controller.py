@@ -219,3 +219,83 @@ def test_login_patient_empty_password(client):
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Credenciais inválidas"
+
+
+# -------------------
+# LOGIN DOCTOR
+# -------------------
+
+def test_login_doctor_success(client):
+    """Test successful doctor login with valid CRM and password returns JWT token."""
+    # First, register a doctor
+    register_payload = {
+        "cpf": "52998224725",
+        "name": "Dr Cabral",
+        "crm": "SP123456",
+        "password": "Abcdefjhijk1!"
+    }
+    client.post("/auth/register/doctor", json=register_payload)
+
+    # Now login with the same credentials
+    login_payload = {
+        "crm": "SP123456",
+        "password": "Abcdefjhijk1!"
+    }
+
+    response = client.post("/auth/login/doctor", json=login_payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+    assert isinstance(data["access_token"], str)
+    assert len(data["access_token"]) > 0
+
+
+def test_login_doctor_crm_not_found(client):
+    """Test login with non-existent CRM returns 401 Credenciais inválidas."""
+    login_payload = {
+        "crm": "SP999999",
+        "password": "Abcdefjhijk1!"
+    }
+
+    response = client.post("/auth/login/doctor", json=login_payload)
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Credenciais inválidas"
+
+
+def test_login_doctor_wrong_password(client):
+    """Test login with correct CRM but wrong password returns 401."""
+    # Register doctor first
+    register_payload = {
+        "cpf": "52998224725",
+        "name": "Dr Cabral",
+        "crm": "SP123456",
+        "password": "Abcdefjhijk1!"
+    }
+    client.post("/auth/register/doctor", json=register_payload)
+
+    # Login with wrong password
+    login_payload = {
+        "crm": "SP123456",
+        "password": "WrongPassword123!"
+    }
+
+    response = client.post("/auth/login/doctor", json=login_payload)
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Credenciais inválidas"
+
+
+def test_login_doctor_empty_crm(client):
+    """Test login with empty CRM returns 401 (treated as invalid credentials)."""
+    login_payload = {
+        "crm": "",
+        "password": "Abcdefjhijk1!"
+    }
+
+    response = client.post("/auth/login/doctor", json=login_payload)
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Credenciais inválidas"

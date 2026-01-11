@@ -320,3 +320,69 @@ describe('useAuth - login patient', () => {
   })
 })
 
+describe('useAuth - login doctor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('should login doctor successfully with valid CRM and password', async () => {
+    const mockResponse = {
+      access_token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1Mjk5ODIyNDcyNSIsInR5cGUiOiJkb2N0b3IiLCJleHAiOjE3MDUwMDAwMDB9.test',
+      token_type: 'bearer'
+    }
+
+    mockFetch.mockResolvedValueOnce(mockResponse)
+
+    const { login } = useAuth()
+    const result = await login('medico', 'SP123456', 'Abcdefjhijk1!')
+
+    expect(result).toEqual(mockResponse)
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/auth/login/doctor'),
+      expect.objectContaining({
+        method: 'POST',
+        body: {
+          crm: 'SP123456',
+          password: 'Abcdefjhijk1!'
+        }
+      })
+    )
+  })
+
+  it('should throw error when CRM credentials are invalid (401)', async () => {
+    const errorResponse = {
+      data: { detail: 'Credenciais inválidas' }
+    }
+
+    mockFetch.mockRejectedValueOnce(errorResponse)
+
+    const { login } = useAuth()
+
+    await expect(login('medico', 'SP123456', 'WrongPassword123!')).rejects.toThrow('Credenciais inválidas')
+  })
+
+  it('should throw error when CRM does not exist', async () => {
+    const errorResponse = {
+      data: { detail: 'Credenciais inválidas' }
+    }
+
+    mockFetch.mockRejectedValueOnce(errorResponse)
+
+    const { login } = useAuth()
+
+    await expect(login('medico', 'SP999999', 'Abcdefjhijk1!')).rejects.toThrow('Credenciais inválidas')
+  })
+
+  it('should throw error when CRM is empty', async () => {
+    const errorResponse = {
+      data: { detail: 'Credenciais inválidas' }
+    }
+
+    mockFetch.mockRejectedValueOnce(errorResponse)
+
+    const { login } = useAuth()
+
+    await expect(login('medico', '', 'Abcdefjhijk1!')).rejects.toThrow('Credenciais inválidas')
+  })
+})
+
