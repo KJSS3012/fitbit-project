@@ -118,6 +118,7 @@ def update_current_user(
 def get_patient_health_metrics(
     cpf: str,
     doctor_crm: str = Query(..., description="Doctor's CRM number for authorization check"),
+    period: Optional[str] = Query(None, pattern="^(daily|weekly|monthly|custom)$", description="Filter period"),
     start_date: Optional[str] = Query(None, description="Start date YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="End date YYYY-MM-DD"),
     current_user: Dict = Depends(get_current_user),
@@ -174,6 +175,51 @@ def get_patient_health_metrics(
     
     if not patient:
         raise HTTPException(status_code=404, detail="Paciente não encontrado")
+    
+    # Validate and calculate date range for custom period
+    if period == "custom" or (start_date and end_date):
+        if not start_date or not end_date:
+            raise HTTPException(
+                status_code=400, 
+                detail="Data inicial e final são obrigatórias para o período customizado."
+            )
+        
+        try:
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(
+                status_code=400, 
+                detail="Formato de data inválido. Use YYYY-MM-DD."
+            )
+        
+        if start_dt > end_dt:
+            raise HTTPException(
+                status_code=400, 
+                detail="Período inválido. Verifique as datas informadas."
+            )
+        
+        now = datetime.now()
+        if end_dt > now:
+            raise HTTPException(
+                status_code=400, 
+                detail="A data final não pode ser posterior à data de hoje."
+            )
+        
+        if (end_dt - start_dt).days > 365:
+            raise HTTPException(
+                status_code=400, 
+                detail="O período customizado não pode exceder 365 dias."
+            )
+    elif period == "daily":
+        today = datetime.now().date().isoformat()
+        start_date = end_date = today
+    elif period == "weekly":
+        end_date = datetime.now().date().isoformat()
+        start_date = (datetime.now() - timedelta(days=7)).date().isoformat()
+    elif period == "monthly":
+        end_date = datetime.now().date().isoformat()
+        start_date = (datetime.now() - timedelta(days=30)).date().isoformat()
     
     # Get metrics
     metrics = patient_repo.get_metrics(cpf, start_date, end_date)

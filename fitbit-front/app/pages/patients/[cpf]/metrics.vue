@@ -20,6 +20,10 @@ const customRange = ref({
   start: sub(new Date(), { days: 7 }),
   end: new Date()
 })
+const showCustomDialog = ref(false)
+const customStartDate = ref('')
+const customEndDate = ref('')
+const toast = useToast()
 
 const currentDateRange = computed(() => {
   const now = new Date()
@@ -59,8 +63,118 @@ const loadPatientData = async () => {
 
   try {
     await fetchPatientMetrics(patientCpf.value, startDate, endDate)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to load patient data:', error)
+
+    // Show error toast with backend message if available
+    const errorMessage = error?.data?.detail || error?.message || 'Erro ao carregar dados do paciente'
+    toast.add({
+      title: 'Erro ao carregar dados',
+      description: errorMessage,
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  }
+}
+
+/**
+ * Validates custom date range before applying
+ */
+const validateCustomRange = (start: string, end: string): boolean => {
+  if (!start || !end) {
+    toast.add({
+      title: 'Período inválido',
+      description: 'Data inicial e final são obrigatórias para o período customizado.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return false
+  }
+
+  const startDt = new Date(start)
+  const endDt = new Date(end)
+  const today = new Date()
+  today.setHours(23, 59, 59, 999)
+
+  if (startDt > endDt) {
+    toast.add({
+      title: 'Período inválido',
+      description: 'Período inválido. Verifique as datas informadas.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return false
+  }
+
+  if (endDt > today) {
+    toast.add({
+      title: 'Data inválida',
+      description: 'A data final não pode ser posterior à data de hoje.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return false
+  }
+
+  const diffTime = Math.abs(endDt.getTime() - startDt.getTime())
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  if (diffDays > 365) {
+    toast.add({
+      title: 'Período muito longo',
+      description: 'O período customizado não pode exceder 365 dias.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Opens custom date range modal
+ */
+const openCustomDialog = () => {
+  if (selectedPeriod.value === 'custom' && customStartDate.value && customEndDate.value) {
+    // Pre-fill with saved values
+    showCustomDialog.value = true
+  } else {
+    // Pre-fill with last week by default
+    const today = new Date()
+    const lastWeek = new Date()
+    lastWeek.setDate(today.getDate() - 7)
+    customStartDate.value = lastWeek.toISOString().split('T')[0]!
+    customEndDate.value = today.toISOString().split('T')[0]!
+    showCustomDialog.value = true
+  }
+}
+
+/**
+ * Applies custom date range
+ */
+const applyCustomRange = () => {
+  if (!validateCustomRange(customStartDate.value, customEndDate.value)) {
+    return
+  }
+
+  customRange.value = {
+    start: new Date(customStartDate.value),
+    end: new Date(customEndDate.value)
+  }
+
+  selectedPeriod.value = 'custom'
+  showCustomDialog.value = false
+  loadPatientData()
+}
+
+/**
+ * Cancels custom range selection
+ */
+const cancelCustomRange = () => {
+  showCustomDialog.value = false
+  if (selectedPeriod.value === 'custom' && !customStartDate.value) {
+    selectedPeriod.value = 'week'
   }
 }
 
@@ -91,9 +205,50 @@ const heartRateData = computed(() => {
 const sleepData = computed(() => {
   if (!selectedPatientMetrics.value?.metrics) return []
 
-  return selectedPatientMetrics.value.metrics.map((m: any) => ({
-    date: m.date,
-    value: m.sleep_hours
+  return s < UButton : color = "selectedPeriod === 'custom' ? 'primary' : 'neutral'"
+              : variant = "selectedPeriod === 'custom' ? 'solid' : 'ghost'" @click="openCustomDialog" >
+  {{ selectedPeriod === 'custom' && customStartDate ? 'Personalizado ✓' : 'Personalizado' }}
+</UButton>
+  </UButtonGroup>
+  </div>
+
+  < !--Custom Date Range Modal-- >
+    <UModal v - model="showCustomDialog" title = "Período Personalizado" >
+      <template #body >
+      <div class="space-y-4" >
+        <div class="space-y-2" >
+          <label for= "startDate" class= "block text-sm font-medium text-gray-700 dark:text-gray-300" >
+            Data Inicial < span class="text-red-500" >* </span>
+              </label>
+              < UInput id = "startDate" v - model="customStartDate" type = "date" icon = "i-lucide-calendar"
+placeholder = "Selecione a data inicial" aria - label="Selecione a data inicial" />
+  </div>
+
+  < div class="space-y-2" >
+    <label for= "endDate" class= "block text-sm font-medium text-gray-700 dark:text-gray-300" >
+      Data Final < span class="text-red-500" >* </span>
+        </label>
+        < UInput id = "endDate" v - model="customEndDate" type = "date" icon = "i-lucide-calendar"
+placeholder = "Selecione a data final" aria - label="Selecione a data final" />
+  </div>
+
+  < UAlert color = "info" variant = "subtle" icon = "i-lucide-info" title = "Importante" >
+    <template #description >
+    O período personalizado não pode exceder 1 ano e a data final não pode ser posterior à data de hoje.
+                </template>
+      </UAlert>
+      </div>
+      </template>
+
+      < template #footer >
+        <div class="flex justify-end gap-2" >
+          <UButton label="Cancelar" color = "neutral" variant = "ghost" @click="cancelCustomRange" />
+            <UButton label="Aplicar Filtro" color = "primary" 
+                : disabled = "!customStartDate || !customEndDate" @click="applyCustomRange" />
+  </div>
+  </template>
+  </UModalate,
+value: m.sleep_hours
   })).reverse()
 })
 
