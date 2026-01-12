@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS data_authorization (
     authorized INTEGER DEFAULT 1 NOT NULL,  -- SQLite uses INTEGER for BOOLEAN (0=false, 1=true)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP,
+    audit_log TEXT,  -- JSON array of audit events: [{"action": "grant|revoke", "timestamp": "...", "by": "patient"}]
     PRIMARY KEY (doctor_crm, patient_cpf),
     FOREIGN KEY (doctor_crm) REFERENCES doctors(crm) ON DELETE CASCADE,
     FOREIGN KEY (patient_cpf) REFERENCES patients(cpf) ON DELETE CASCADE
