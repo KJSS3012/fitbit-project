@@ -15,6 +15,7 @@ from app.controllers.dashboard_controller import router
 from app.database.connection import Base, get_db
 from app.core.security import create_access_token, get_password_hash
 from app.models.patient import Patient
+from app.api.dependencies import get_current_user
 
 # ---------------- DATABASE SETUP ----------------
 
@@ -46,7 +47,22 @@ def override_get_db():
     finally:
         db.close()
 
+def override_get_current_user():
+    return {
+        "sub": "60440964083",  # Test patient CPF
+        "type": "patient"
+    }
+
 app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_current_user] = override_get_current_user
+
+@pytest.fixture(scope="module", autouse=True)
+def cleanup_overrides():
+    """Cleanup dependency overrides after all tests in this module"""
+    yield
+    # Remove overrides to avoid interfering with other test modules
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_db, None)
 
 # ---------------- FIXTURES ----------------
 
@@ -151,6 +167,56 @@ def test_get_metrics_performance_limit(client, patient_token):
 def test_get_metrics_invalid_period_regex(client, patient_token):
     response = client.get(
         "/dashboard/metrics?period=yearly",
+        headers={"Authorization": f"Bearer {patient_token}"}
+    )
+    assert response.status_code == 422
+
+
+def test_metrics_summary_7d(client, patient_token):
+    """Test GET /metrics/summary with 7d period."""
+    response = client.get(
+        "/dashboard/metrics/summary?period=7d",
+        headers={"Authorization": f"Bearer {patient_token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Verify response structure
+    assert data["period"] == "7d"
+    assert "days_analyzed" in data
+    assert "steps_total" in data
+    assert "steps_average" in data
+    assert "steps_max" in data
+    assert "hr_average" in data
+    assert "hr_min" in data
+    assert "hr_max" in data
+    assert "sleep_total_hours" in data
+    assert "sleep_average_hours" in data
+    assert "calories_total" in data
+    assert "calories_average" in data
+    assert "last_data_date" in data
+    assert "days_since_last_data" in data
+
+
+def test_metrics_summary_30d(client, patient_token):
+    """Test GET /metrics/summary with 30d period."""
+    response = client.get(
+        "/dashboard/metrics/summary?period=30d",
+        headers={"Authorization": f"Bearer {patient_token}"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["period"] == "30d"
+    assert isinstance(data["days_analyzed"], int)
+    assert isinstance(data["steps_total"], int)
+    assert isinstance(data["steps_average"], int)
+
+
+def test_metrics_summary_invalid_period(client, patient_token):
+    """Test GET /metrics/summary with invalid period."""
+    response = client.get(
+        "/dashboard/metrics/summary?period=90d",
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 422

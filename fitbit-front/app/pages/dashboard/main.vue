@@ -18,6 +18,7 @@ const {
   lastSyncTime,
   enableFitbitMode,
   enableSimulationMode,
+  syncFitbitData,
   toggleSimulation,
   getStepsData,
   getHeartRateData,
@@ -25,7 +26,8 @@ const {
   getCaloriesData,
   getStats,
   hasInsufficientData,
-  fetchFitbitData
+  fetchFitbitData,
+  checkSleepDataFreshness
 } = useFitbitData()
 
 const {
@@ -92,6 +94,7 @@ const stats = ref({
 })
 
 const isRefreshing = ref(false)
+const isSyncing = ref(false)
 
 // Manual data refresh function
 const refreshData = async () => {
@@ -122,11 +125,33 @@ const refreshData = async () => {
   }
 }
 
+// Manual Fitbit sync function
+const handleSyncNow = async () => {
+  if (isSyncing.value) return
+
+  isSyncing.value = true
+  try {
+    await syncFitbitData()
+    // Refresh UI after successful sync
+    await refreshData()
+  } catch (error) {
+    // Error already handled by syncFitbitData with toast
+    console.error('Sync failed:', error)
+  } finally {
+    isSyncing.value = false
+  }
+}
+
 // Load data on mount only
 onMounted(async () => {
   await fetchUser()
   await checkFitbitStatus()
   await refreshData()
+
+  // Check for stale sleep data on mount
+  if (isFitbitConnected.value) {
+    await checkSleepDataFreshness('7d')
+  }
 })
 
 // Refresh when period or mode changes
@@ -153,6 +178,12 @@ const showInsufficientDataWarning = computed(() =>
 
         <template #right>
           <div class="flex items-center gap-2">
+            <!-- Sync Now Button (Fitbit only) -->
+            <UButton v-if="isFitbitMode && isFitbitConnected" icon="i-lucide-download-cloud" color="primary"
+              variant="soft" size="sm" :loading="isSyncing" @click="handleSyncNow">
+              Sincronizar Agora
+            </UButton>
+
             <!-- Last Sync Time -->
             <div v-if="lastSyncTime" class="text-xs text-gray-500 dark:text-gray-400">
               Última atualização: {{ formatLastSync(lastSyncTime) }}

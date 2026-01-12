@@ -12,7 +12,7 @@ from app.database.connection import Base, get_db
 from app.models.patient import Patient
 from app.models.doctor import Doctor
 from app.core.security import get_password_hash
-from app.core.security import create_access_token
+from app.api.dependencies import get_current_user
 
 
 # Test database setup
@@ -43,10 +43,22 @@ client = TestClient(app)
 
 @pytest.fixture
 def db():
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
-    yield TestingSessionLocal()
+    db_session = TestingSessionLocal()
+    yield db_session
+    db_session.close()
     Base.metadata.drop_all(bind=engine)
 
+
+@pytest.fixture
+def mock_patient_user():
+    """Mock current user as patient"""
+    def _get_current_user():
+        return {"sub": "12345678901", "type": "patient"}
+    app.dependency_overrides[get_current_user] = _get_current_user
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 @pytest.fixture
 def test_patient(db):
@@ -61,6 +73,15 @@ def test_patient(db):
     db.refresh(patient)
     return patient
 
+
+@pytest.fixture
+def mock_doctor_user():
+    """Mock current user as doctor"""
+    def _get_current_user():
+        return {"sub": "CRM12345", "type": "doctor"}
+    app.dependency_overrides[get_current_user] = _get_current_user
+    yield
+    app.dependency_overrides.pop(get_current_user, None)
 
 @pytest.fixture
 def test_doctor(db):
@@ -95,12 +116,9 @@ def doctor_token(test_doctor):
     )
 
 
-def test_get_current_user_patient(patient_token):
+def test_get_current_user_patient(test_patient, mock_patient_user):
     """Test GET /user/me for patient"""
-    response = client.get(
-        "/user/me",
-        headers={"Authorization": f"Bearer {patient_token}"}
-    )
+    response = client.get("/user/me")
     
     assert response.status_code == 200
     data = response.json()
@@ -109,12 +127,9 @@ def test_get_current_user_patient(patient_token):
     assert data["type"] == "patient"
 
 
-def test_get_current_user_doctor(doctor_token):
+def test_get_current_user_doctor(test_doctor, mock_doctor_user):
     """Test GET /user/me for doctor"""
-    response = client.get(
-        "/user/me",
-        headers={"Authorization": f"Bearer {doctor_token}"}
-    )
+    response = client.get("/user/me")
     
     assert response.status_code == 200
     data = response.json()
@@ -138,11 +153,10 @@ def test_get_current_user_invalid_token():
     assert response.status_code == 401
 
 
-def test_update_user_name_patient(patient_token):
+def test_update_user_name_patient(test_patient, mock_patient_user):
     """Test PATCH /user/me - update name"""
     response = client.patch(
         "/user/me",
-        headers={"Authorization": f"Bearer {patient_token}"},
         json={"name": "João Silva Atualizado"}
     )
     
@@ -152,20 +166,16 @@ def test_update_user_name_patient(patient_token):
     assert "atualizado" in data["message"].lower()
     
     # Verify change
-    get_response = client.get(
-        "/user/me",
-        headers={"Authorization": f"Bearer {patient_token}"}
-    )
+    get_response = client.get("/user/me")
     assert get_response.json()["name"] == "João Silva Atualizado"
 
 
-def test_update_user_password_patient(patient_token):
+def test_update_user_password_patient(test_patient, mock_patient_user):
     """Test PATCH /user/me - update password"""
     new_password = "novasenha12345678"  # 17 caracteres
     
     response = client.patch(
         "/user/me",
-        headers={"Authorization": f"Bearer {patient_token}"},
         json={"password": new_password}
     )
     
@@ -175,11 +185,10 @@ def test_update_user_password_patient(patient_token):
     assert "atualizado" in data["message"].lower()
 
 
-def test_update_user_password_too_short(patient_token):
+def test_update_user_password_too_short(test_patient, mock_patient_user):
     """Test PATCH /user/me - password too short"""
     response = client.patch(
         "/user/me",
-        headers={"Authorization": f"Bearer {patient_token}"},
         json={"password": "short"}
     )
     
@@ -187,11 +196,10 @@ def test_update_user_password_too_short(patient_token):
     assert "12 caracteres" in response.json()["detail"]
 
 
-def test_update_user_both_fields(patient_token):
+def test_update_user_both_fields(test_patient, mock_patient_user):
     """Test PATCH /user/me - update both name and password"""
     response = client.patch(
         "/user/me",
-        headers={"Authorization": f"Bearer {patient_token}"},
         json={
             "name": "Novo Nome",
             "password": "novasenha123456"
@@ -201,29 +209,24 @@ def test_update_user_both_fields(patient_token):
     assert response.status_code == 200
     
     # Verify name change
-    get_response = client.get(
-        "/user/me",
-        headers={"Authorization": f"Bearer {patient_token}"}
-    )
+    get_response = client.get("/user/me")
     assert get_response.json()["name"] == "Novo Nome"
 
 
-def test_update_user_no_changes(patient_token):
+def test_update_user_no_changes(test_patient, mock_patient_user):
     """Test PATCH /user/me - empty update"""
     response = client.patch(
         "/user/me",
-        headers={"Authorization": f"Bearer {patient_token}"},
         json={}
     )
     
     assert response.status_code == 200
 
 
-def test_update_user_doctor(doctor_token):
+def test_update_user_doctor(test_doctor, mock_doctor_user):
     """Test PATCH /user/me for doctor"""
     response = client.patch(
         "/user/me",
-        headers={"Authorization": f"Bearer {doctor_token}"},
         json={"name": "Dra. Maria Santos"}
     )
     

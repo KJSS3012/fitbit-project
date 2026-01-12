@@ -109,12 +109,18 @@ export const useFitbitData = () => {
         lastSyncTime.value = new Date()
         realFitbitData.value = data
         return data
-      } catch (error) {
+      } catch (error: any) {
+        // Check for 401 token expiration
+        if (error?.response?.status === 401 || error?.status === 401) {
+          throw new Error('Conexão Fitbit expirou. Reconecte sua conta')
+        }
+
         // Return cached data on error if available
         if (cached) {
           return cached.data
         }
-        return null
+
+        throw new Error('Falha ao sincronizar. Verifique sua conexão')
       } finally {
         // Clean up pending request
         delete pendingRequests.value[date]
@@ -124,6 +130,77 @@ export const useFitbitData = () => {
     // Store pending request
     pendingRequests.value[date] = request
     return request
+  }
+
+  /**
+   * Synchronize Fitbit data and persist to database
+   */
+  const syncFitbitData = async (date: string = format(new Date(), 'yyyy-MM-dd')): Promise<boolean> => {
+    if (!isFitbitConnected.value || !token.value) {
+      throw new Error('Fitbit não está conectado')
+    }
+
+    const toast = useToast()
+
+    try {
+      const response = await $fetch<{
+        success: boolean
+        message: string
+        data: any
+      }>(`${API_BASE_URL}/fitbit/sync`, {
+        method: 'POST',
+        params: { day: date },
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      })
+
+      // Update last sync time
+      lastSyncTime.value = new Date()
+
+      // Clear cache to force refresh
+      delete requestCache.value[date]
+
+      // Show success toast
+      toast.add({
+        title: 'Sincronização completa',
+        description: 'Dados atualizados com sucesso',
+        color: 'success',
+        icon: 'i-heroicons-check-circle'
+      })
+
+      return response.success
+    } catch (error: any) {
+      // Handle specific error cases
+      if (error?.response?.status === 401 || error?.status === 401) {
+        const detail = error?.data?.detail || error?.response?.data?.detail || ''
+        if (detail.includes('expirou')) {
+          toast.add({
+            title: 'Conexão expirada',
+            description: 'Conexão Fitbit expirou. Reconecte sua conta',
+            color: 'error',
+            icon: 'i-heroicons-exclamation-circle'
+          })
+          throw new Error('Conexão Fitbit expirou. Reconecte sua conta')
+        }
+        toast.add({
+          title: 'Não conectado',
+          description: 'Fitbit não está conectado',
+          color: 'warning',
+          icon: 'i-heroicons-exclamation-triangle'
+        })
+        throw new Error('Fitbit não está conectado')
+      }
+
+      toast.add({
+        title: 'Falha na sincronização',
+        description: 'Falha ao sincronizar dados. Verifique sua conexão',
+        color: 'error',
+        icon: 'i-heroicons-x-circle'
+      })
+
+      throw new Error('Falha ao sincronizar dados. Verifique sua conexão')
+    }
   }
 
   const filterByDateRange = <T extends { dateTime?: string; dateOfSleep?: string }>(
@@ -336,7 +413,7 @@ export const useFitbitData = () => {
         totalHours: Math.round(sleepData.reduce((sum, item) => sum + item.value, 0) / 60),
         averageHours: sleepData.length > 0
           ? (sleepData.reduce((sum, item) => sum + item.value, 0) / sleepData.length / 60).toFixed(1)
-          : 0
+          : '0'
       },
       calories: {
         total: caloriesData.reduce((sum, item) => sum + item.value, 0),
@@ -365,6 +442,58 @@ export const useFitbitData = () => {
     return false
   }
 
+  /**
+   * Fetches metrics summary from /dashboard/metrics/summary endpoint
+   * and checks for stale sleep data (>15 days).
+   * Shows toast notification if sleep data is outdated.
+   * 
+   * @param period - "7d" or "30d"
+   */
+  const checkSleepDataFreshness = async (period: '7d' | '30d' = '7d') => {
+    if (!isFitbitConnected.value || !token.value) {
+      return
+    }
+
+    try {
+      const summary = await $fetch<{
+        period: string
+        days_analyzed: number
+        steps_total: number
+        steps_average: number
+        steps_max: number
+        hr_average: number
+        hr_min: number
+        hr_max: number
+        sleep_total_hours: number
+        sleep_average_hours: number
+        calories_total: number
+        calories_average: number
+        last_data_date: string | null
+        days_since_last_data: number | null
+      }>(`${API_BASE_URL}/dashboard/metrics/summary`, {
+        params: { period },
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      })
+
+      // Check if sleep data is older than 15 days
+      if (summary.days_since_last_data !== null && summary.days_since_last_data > 15) {
+        const toast = useToast()
+        toast.add({
+          title: 'Dados de sono desatualizados',
+          description: 'Não há dados de sono recentes. Sincronize seu Fitbit para atualizar.',
+          color: 'warning',
+          icon: 'i-lucide-alert-triangle',
+          timeout: 8000
+        })
+      }
+    } catch (error) {
+      // Silently fail - this is a non-critical check
+      console.warn('Failed to check sleep data freshness:', error)
+    }
+  }
+
   return {
     isSimulationMode,
     isFitbitMode,
@@ -373,11 +502,13 @@ export const useFitbitData = () => {
     enableSimulationMode,
     toggleSimulation,
     fetchFitbitData,
+    syncFitbitData,
     getStepsData,
     getHeartRateData,
     getSleepData,
     getCaloriesData,
     getStats,
-    hasInsufficientData
+    hasInsufficientData,
+    checkSleepDataFreshness
   }
 }
