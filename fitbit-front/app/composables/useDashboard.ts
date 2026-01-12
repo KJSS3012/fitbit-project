@@ -141,19 +141,22 @@ const _useDashboard = () => {
   })
 
   /**
-   * Changes filter period with debounce optimization
+   * Changes filter period
    */
-  const changePeriod = useDebounceFn((period: FilterPeriod) => {
+  const changePeriod = async (period: FilterPeriod) => {
     if (period === 'custom' && !customDateRange.value) {
       return
     }
     selectedPeriod.value = period
     isLoadingData.value = true
 
+    // Use nextTick to ensure state is updated before triggering loading
+    await nextTick()
+
     setTimeout(() => {
       isLoadingData.value = false
     }, 300)
-  }, 150)
+  }
 
   return {
     isNotificationsSlideoverOpen,

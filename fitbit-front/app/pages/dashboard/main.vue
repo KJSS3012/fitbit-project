@@ -13,7 +13,7 @@ definePageMeta({
 
 const router = useRouter()
 const { user, isPatient, isDoctor, fetchUser } = useAuth()
-const { currentDateRange, isLoadingData, selectedPeriod } = useDashboard()
+const { currentDateRange, isLoadingData, selectedPeriod, customDateRange } = useDashboard()
 const {
   isSimulationMode,
   isFitbitMode,
@@ -157,7 +157,7 @@ onMounted(async () => {
 })
 
 // Refresh when period or mode changes
-watch([selectedPeriod, isFitbitMode, isSimulationMode], () => {
+watch([selectedPeriod, isFitbitMode, isSimulationMode, customDateRange], () => {
   refreshData()
 })
 

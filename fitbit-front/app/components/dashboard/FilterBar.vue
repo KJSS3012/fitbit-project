@@ -30,6 +30,9 @@ const activeTabValue = computed(() => {
   return activePeriod.value
 })
 
+// Computed to check if custom date range is selected
+const isCustomSelected = computed(() => !!customDateRange.value)
+
 /**
  * Opens the custom date range dialog and pre-fills with saved values if available
  */
@@ -59,11 +62,11 @@ const onPeriodTabChange = (value: string | number) => {
   changePeriod(next as any)
 }
 
-const applyCustomRange = () => {
+const applyCustomRange = async () => {
   if (setCustomDateRange(startDate.value, endDate.value)) {
     showCustomDialog.value = false
     activePeriod.value = 'custom'
-    changePeriod('custom' as any)
+    await changePeriod('custom' as any)
   }
 }
 
@@ -86,16 +89,16 @@ const isFormValid = computed(() => {
   <div class="flex items-center gap-3 flex-wrap">
     <UTabs :model-value="activeTabValue" :items="periodTabs" @update:modelValue="onPeriodTabChange" />
 
-    <UButton icon="i-lucide-calendar" size="sm" variant="outline" :color="customDateRange ? 'primary' : 'secondary'"
-      @click="openFilterDialog">
-      {{ customDateRange ? 'Personalizado ✓' : 'Personalizado' }}
+    <UButton icon="i-lucide-calendar" size="sm" variant="outline"
+      :color="isCustomSelected ? 'primary' : 'secondary'" @click="openFilterDialog">
+      {{ isCustomSelected ? 'Personalizado ✓' : 'Personalizado' }}
     </UButton>
 
-    <Teleport to="body">
+    <Teleport v-if="showCustomDialog" to="body">
       <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0"
         enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200" leave-from-class="opacity-100"
         leave-to-class="opacity-0">
-        <div v-if="showCustomDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           @click.self="showCustomDialog = false">
           <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
             <h3 class="text-lg font-semibold mb-4">Período Personalizado</h3>
