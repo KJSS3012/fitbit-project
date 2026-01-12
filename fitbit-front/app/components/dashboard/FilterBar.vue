@@ -5,7 +5,7 @@ const { selectedPeriod, changePeriod, setCustomDateRange, customDateRange } = us
 
 type FilterPeriod = 'day' | 'week' | 'month' | 'custom'
 
-const showCustomDialog = ref(true)
+const showCustomDialog = ref(false)
 const startDate = ref('')
 const endDate = ref('')
 
@@ -22,12 +22,13 @@ watch(() => selectedPeriod.value, (value) => {
 const periodTabs = computed<TabsItem[]>(() => [
   { label: 'Dia', value: 'day' },
   { label: 'Semana', value: 'week' },
-  { label: 'Mês', value: 'month' },
-  {
-    label: customDateRange.value ? 'Personalizado ✓' : 'Personalizado',
-    value: 'custom'
-  }
+  { label: 'Mês', value: 'month' }
 ])
+
+// Computed to determine which tab should be active
+const activeTabValue = computed(() => {
+  return activePeriod.value
+})
 
 /**
  * Opens the custom date range dialog and pre-fills with saved values if available
@@ -52,12 +53,6 @@ const openFilterDialog = () => {
  */
 const onPeriodTabChange = (value: string | number) => {
   const next = value as FilterPeriod
-
-  if (next === 'custom') {
-    // Open modal instead of immediately switching
-    openFilterDialog()
-    return
-  }
 
   activePeriod.value = next
   showCustomDialog.value = false
@@ -89,41 +84,51 @@ const isFormValid = computed(() => {
 
 <template>
   <div class="flex items-center gap-3 flex-wrap">
-    <UTabs :model-value="activePeriod" :items="periodTabs" @update:modelValue="onPeriodTabChange" />
+    <UTabs :model-value="activeTabValue" :items="periodTabs" @update:modelValue="onPeriodTabChange" />
 
-    <UModal v-model="showCustomDialog" title="Período Personalizado">
-      <template #body>
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <label for="startDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Data Inicial <span class="text-red-500">*</span>
-            </label>
-            <UInput id="startDate" v-model="startDate" type="date" icon="i-lucide-calendar"
-              placeholder="Selecione a data inicial" aria-label="Selecione a data inicial" />
+    <UButton icon="i-lucide-calendar" size="sm" variant="outline" :color="customDateRange ? 'primary' : 'gray'"
+      @click="openFilterDialog">
+      {{ customDateRange ? 'Personalizado ✓' : 'Personalizado' }}
+    </UButton>
+
+    <Teleport to="body">
+      <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0"
+        enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200" leave-from-class="opacity-100"
+        leave-to-class="opacity-0">
+        <div v-if="showCustomDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          @click.self="showCustomDialog = false">
+          <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 class="text-lg font-semibold mb-4">Período Personalizado</h3>
+
+            <div class="space-y-4">
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Data Inicial <span class="text-red-500">*</span>
+                </label>
+                <UInput v-model="startDate" type="date" icon="i-lucide-calendar" />
+              </div>
+
+              <div class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Data Final <span class="text-red-500">*</span>
+                </label>
+                <UInput v-model="endDate" type="date" icon="i-lucide-calendar" />
+              </div>
+
+              <UAlert color="info" variant="subtle" icon="i-lucide-info" title="Importante">
+                <template #description>
+                  O período personalizado não pode exceder 1 ano e a data final não pode ser posterior à data de hoje.
+                </template>
+              </UAlert>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+              <UButton label="Cancelar" color="neutral" variant="ghost" @click="cancelCustomRange" />
+              <UButton label="Aplicar Filtro" color="primary" :disabled="!isFormValid" @click="applyCustomRange" />
+            </div>
           </div>
-
-          <div class="space-y-2">
-            <label for="endDate" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Data Final <span class="text-red-500">*</span>
-            </label>
-            <UInput id="endDate" v-model="endDate" type="date" icon="i-lucide-calendar"
-              placeholder="Selecione a data final" aria-label="Selecione a data final" />
-          </div>
-
-          <UAlert color="info" variant="subtle" icon="i-lucide-info" title="Importante">
-            <template #description>
-              O período personalizado não pode exceder 1 ano e a data final não pode ser posterior à data de hoje.
-            </template>
-          </UAlert>
         </div>
-      </template>
-
-      <template #footer>
-        <div class="flex justify-end gap-2">
-          <UButton label="Cancelar" color="neutral" variant="ghost" @click="cancelCustomRange" />
-          <UButton label="Aplicar Filtro" color="primary" :disabled="!isFormValid" @click="applyCustomRange" />
-        </div>
-      </template>
-    </UModal>
+      </Transition>
+    </Teleport>
   </div>
 </template>

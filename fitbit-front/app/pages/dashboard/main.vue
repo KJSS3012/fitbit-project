@@ -4,6 +4,7 @@ import type { Period, Range } from '~/types/dashboard'
 import type { TimeFilter } from '~/composables/useFitbitData'
 import { useDashboard } from '~/composables/useDashboard'
 import FitbitConnect from '~/components/shared/FitbitConnect.vue'
+import FilterBar from '~/components/dashboard/FilterBar.vue'
 
 definePageMeta({
   layout: 'dashboard',
@@ -226,13 +227,6 @@ const showInsufficientDataWarning = computed(() =>
 
                 <div class="my-2 border-t border-gray-200 dark:border-gray-800" />
 
-                <div class="space-y-1">
-                  <p class="text-sm font-semibold mb-2">Conexão Fitbit</p>
-                  <FitbitConnect />
-                </div>
-
-                <div class="my-2 border-t border-gray-200 dark:border-gray-800" />
-
                 <UButton label="Exportar Dados" icon="i-lucide-download" color="neutral" variant="ghost" block
                   class="justify-start" @click="handleExport" />
               </div>
@@ -247,7 +241,7 @@ const showInsufficientDataWarning = computed(() =>
       <UDashboardToolbar>
         <template #left>
           <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full">
-            <DashboardFilterBar />
+            <FilterBar />
           </div>
         </template>
       </UDashboardToolbar>

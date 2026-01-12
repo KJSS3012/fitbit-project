@@ -17,7 +17,6 @@ const { handleSubmit, errors, isSubmitting } = useForm({
   validationSchema: toTypedSchema(loginSchema),
   initialValues: {
     userType: 'paciente',
-    rememberMe: false,
     cpf: '',
     crm: ''
   }
@@ -27,7 +26,6 @@ const { value: userType } = useField<'paciente' | 'medico'>('userType')
 const { value: cpf } = useField<string>('cpf')
 const { value: crm } = useField<string>('crm')
 const { value: password } = useField<string>('password')
-const { value: rememberMe } = useField<boolean>('rememberMe')
 
 const formatCPF = (event: Event) => {
   const input = event.target as HTMLInputElement
@@ -53,8 +51,7 @@ const submitHandler = handleSubmit(async (values) => {
     await login(
       values.userType,
       identifier,
-      values.password,
-      values.rememberMe || false
+      values.password
     )
 
     toast.add({
@@ -114,10 +111,6 @@ const onSubmit = async () => {
       <UFormField label="Senha" required :error="errors.password">
         <UInput v-model="password" type="password" placeholder="••••••••••••" size="lg" class="w-full" />
       </UFormField>
-
-      <div class="flex items-center">
-        <UCheckbox v-model="rememberMe" label="Lembrar-me" />
-      </div>
 
       <UButton type="submit" block size="lg" :loading="isSubmitting" :disabled="isSubmitting">
         Entrar

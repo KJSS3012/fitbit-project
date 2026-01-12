@@ -3,6 +3,7 @@ import { sub, startOfDay, endOfDay } from 'date-fns'
 import type { Period, Range } from '~/types/dashboard'
 import type { TimeFilter } from '~/composables/useFitbitData'
 import { useDashboard } from '~/composables/useDashboard'
+import FilterBar from '~/components/dashboard/FilterBar.vue'
 
 definePageMeta({
   layout: 'dashboard',
@@ -175,7 +176,7 @@ if (!isSimulationMode.value) {
               Modo Visualização
             </UBadge>
 
-            <DashboardFilterBar />
+            <FilterBar />
           </div>
         </template>
       </UDashboardToolbar>
