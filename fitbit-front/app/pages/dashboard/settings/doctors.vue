@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useAuthorization } from '~/composables/useAuthorization'
+
 /**
  * PB11: Patient controls which doctors can access their health data.
  * Scenarios: 1(grant), 2(revoke), 3(audit error), 4(empty state)
