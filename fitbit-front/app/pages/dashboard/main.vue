@@ -3,6 +3,7 @@ import { sub, startOfDay, endOfDay } from 'date-fns'
 import type { Period, Range } from '~/types/dashboard'
 import type { TimeFilter } from '~/composables/useFitbitData'
 import { useDashboard } from '~/composables/useDashboard'
+import FitbitConnect from '~/components/shared/FitbitConnect.vue'
 
 definePageMeta({
   layout: 'dashboard',
@@ -227,11 +228,7 @@ const showInsufficientDataWarning = computed(() =>
 
                 <div class="space-y-1">
                   <p class="text-sm font-semibold mb-2">Conexão Fitbit</p>
-                  <UButton v-if="!isFitbitConnected" label="Conectar Fitbit" icon="i-simple-icons-fitbit"
-                    color="primary" variant="ghost" block class="justify-start" :loading="isConnecting"
-                    @click="connectFitbit" />
-                  <UButton v-else label="Desconectar Fitbit" icon="i-lucide-unplug" color="error" variant="ghost" block
-                    class="justify-start" @click="disconnectFitbit" />
+                  <FitbitConnect />
                 </div>
 
                 <div class="my-2 border-t border-gray-200 dark:border-gray-800" />

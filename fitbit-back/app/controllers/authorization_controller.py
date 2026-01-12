@@ -34,6 +34,13 @@ class AddDoctorRequest(BaseModel):
     doctor_crm: str
 
 
+class RevokeAllResponse(BaseModel):
+    """Response model for revoke all authorizations action."""
+    success: bool
+    message: str
+    revoked_count: int
+
+
 @router.get("/doctors", response_model=List[DoctorAuthorizationResponse])
 def list_authorized_doctors(
     current_user: Dict = Depends(get_current_user),
@@ -164,4 +171,48 @@ def add_doctor_authorization(
         raise HTTPException(
             status_code=500,
             detail=f"Erro ao adicionar médico: {str(e)}"
+        )
+
+
+@router.delete("/doctors/all", response_model=RevokeAllResponse)
+def revoke_all_doctor_authorizations(
+    current_user: Dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> RevokeAllResponse:
+    """
+    Revoke all doctor authorizations for the current patient.
+    
+    **PB11 Scenario 2**: Bulk revoke authorization → "Revogado" + audit log for each
+    
+    Returns:
+        Success message with count of revoked authorizations
+    """
+    # Only patients can revoke authorizations
+    if current_user["type"] != "patient":
+        raise HTTPException(status_code=403, detail="Apenas pacientes podem revogar autorizações")
+    
+    patient_cpf = current_user["sub"]
+    auth_repo = AuthorizationRepository(db)
+    
+    try:
+        revoked_count = auth_repo.revoke_all_authorizations(patient_cpf)
+        
+        if revoked_count == 0:
+            message = "Nenhuma autorização encontrada para revogar"
+        elif revoked_count == 1:
+            message = "1 autorização revogada com sucesso"
+        else:
+            message = f"{revoked_count} autorizações revogadas com sucesso"
+        
+        return RevokeAllResponse(
+            success=True,
+            message=message,
+            revoked_count=revoked_count
+        )
+    
+    except RuntimeError as e:
+        # PB11 Scenario 3: Audit error
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao registrar auditoria. Operação não concluída: {str(e)}"
         )

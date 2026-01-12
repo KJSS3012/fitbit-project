@@ -59,11 +59,11 @@ describe('Doctor Patient Metrics - Period Filters (PB13)', () => {
       const today = new Date()
       const range = calculateDateRange('day')
 
-      const startDate = new Date(range.start).toDateString()
-      const endDate = new Date(range.end).toDateString()
+      const startDate = new Date(range.start + 'T12:00:00') // noon to avoid timezone issues
+      const endDate = new Date(range.end + 'T12:00:00')
 
-      expect(startDate).toBe(today.toDateString())
-      expect(endDate).toBe(today.toDateString())
+      expect(startDate.toDateString()).toBe(today.toDateString())
+      expect(endDate.toDateString()).toBe(today.toDateString())
     })
 
     it('should calculate weekly period as last 7 days', () => {
@@ -92,8 +92,9 @@ function validateCustomRange(startDate: string, endDate: string): boolean {
     return false
   }
 
-  const start = new Date(startDate)
-  const end = new Date(endDate)
+  // Parse as local start/end to avoid timezone/UTC parsing differences
+  const start = new Date(`${startDate}T00:00:00`)
+  const end = new Date(`${endDate}T23:59:59.999`)
   const today = new Date()
   today.setHours(23, 59, 59, 999)
 
@@ -130,8 +131,16 @@ function calculateDateRange(period: 'day' | 'week' | 'month') {
       break
   }
 
+  // Return local YYYY-MM-DD strings
+  const toLocalYMD = (d: Date) => {
+    const yyyy = d.getFullYear()
+    const mm = `${d.getMonth() + 1}`.padStart(2, '0')
+    const dd = `${d.getDate()}`.padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
+  }
+
   return {
-    start: start.toISOString().split('T')[0]!,
-    end: now.toISOString().split('T')[0]!
+    start: toLocalYMD(start),
+    end: toLocalYMD(now)
   }
 }

@@ -22,9 +22,10 @@ const data = ref<DataRecord[]>([])
 
 watch([() => props.period, () => props.range], () => {
   const dates = ({
-    daily: eachDayOfInterval,
-    weekly: eachWeekOfInterval,
-    monthly: eachMonthOfInterval
+    day: eachDayOfInterval,
+    week: eachWeekOfInterval,
+    month: eachMonthOfInterval,
+    custom: eachDayOfInterval
   } as Record<Period, typeof eachDayOfInterval>)[props.period](props.range)
 
   const min = 50
@@ -42,9 +43,10 @@ const formatNumber = new Intl.NumberFormat('pt-BR').format
 
 const formatDate = (date: Date): string => {
   return ({
-    daily: format(date, 'd MMM'),
-    weekly: format(date, 'd MMM'),
-    monthly: format(date, 'MMM yyy')
+    day: format(date, 'd MMM'),
+    week: format(date, 'd MMM'),
+    month: format(date, 'MMM yyy'),
+    custom: format(date, 'd MMM')
   })[props.period]
 }
 

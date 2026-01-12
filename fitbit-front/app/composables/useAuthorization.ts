@@ -193,11 +193,55 @@ export const useAuthorization = () => {
     }
   }
 
+  /**
+   * Revoke all doctor authorizations for the current patient.
+   */
+  const revokeAllAuthorizations = async () => {
+    if (!token.value || !user.value) {
+      throw new Error('Usuário não autenticado')
+    }
+
+    try {
+      const response = await $fetch<any>(
+        `${API_BASE_URL}/auth/doctors/all`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token.value}`
+          }
+        }
+      )
+
+      // Refresh the list after revoking all
+      await fetchAuthorizedDoctors()
+
+      toast.add({
+        title: 'Autorizações revogadas',
+        description: response.message,
+        color: 'success',
+        icon: 'i-heroicons-check-circle'
+      })
+
+      return response
+    } catch (error: any) {
+      console.error('Error revoking all authorizations:', error)
+
+      toast.add({
+        title: 'Erro ao revogar autorizações',
+        description: error?.data?.detail || 'Ocorreu um erro inesperado.',
+        color: 'error',
+        icon: 'i-heroicons-exclamation-triangle'
+      })
+      throw error
+    }
+  }
+
   return {
     authorizedDoctors,
     isLoading,
     fetchAuthorizedDoctors,
     toggleDoctorAuthorization,
-    addDoctorAuthorization
+    addDoctorAuthorization,
+    revokeAllAuthorizations
   }
 }

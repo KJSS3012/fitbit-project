@@ -53,8 +53,8 @@ describe('useDashboard - Date Range Functions', () => {
     })
 
     it('should accept date range exactly 365 days', () => {
-      const start = '2024-01-01'
-      const end = '2024-12-31'
+      const start = '2023-01-01'
+      const end = '2023-12-31'
       expect(validateCustomRange(start, end)).toBe(true)
     })
 
@@ -110,8 +110,9 @@ function validateCustomRange(startDate: string, endDate: string): boolean {
     return false
   }
 
-  const start = new Date(startDate)
-  const end = new Date(endDate)
+  // Parse as local start/end times to avoid timezone issues in tests
+  const start = new Date(`${startDate}T00:00:00`)
+  const end = new Date(`${endDate}T23:59:59.999`)
   const today = new Date()
   today.setHours(23, 59, 59, 999) // Set to end of today
 

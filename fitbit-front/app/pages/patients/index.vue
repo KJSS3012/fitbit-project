@@ -6,29 +6,21 @@ definePageMeta({
 
 const { user, isDoctor } = useAuth()
 const router = useRouter()
+const { authorizedPatients, isLoading, fetchAuthorizedPatients } = useDoctorPatients()
 
 interface Patient {
-  id: string
-  name: string
   cpf: string
-  age?: number
-  lastSync?: string
-  status: 'active' | 'inactive'
+  name: string
 }
 
 const searchQuery = ref('')
-const isLoading = ref(false)
 
-const patients = ref<Patient[]>([
-  {
-    id: 'patient-demo-001',
-    name: 'João da Silva',
-    cpf: '123.456.789-00',
-    age: 45,
-    lastSync: '2026-01-09T10:30:00',
-    status: 'active'
-  }
-])
+const patients = computed(() => authorizedPatients.value.map(p => ({
+  id: p.cpf,
+  name: p.name,
+  cpf: p.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4'),
+  status: 'active' as const
+})))
 
 const filteredPatients = computed(() => {
   if (!searchQuery.value) return patients.value
@@ -44,18 +36,6 @@ const getStatusColor = (status: string) => {
   return status === 'active' ? 'success' : 'neutral'
 }
 
-const formatLastSync = (dateString: string) => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-
-  if (diffHours < 1) return 'Agora mesmo'
-  if (diffHours < 24) return `Há ${diffHours}h`
-
-  const diffDays = Math.floor(diffHours / 24)
-  return `Há ${diffDays} dia${diffDays > 1 ? 's' : ''}`
-}
-
 const viewPatientDashboard = (patientId: string) => {
   // Navigate to patient metrics page with CPF
   const patient = patients.value.find(p => p.id === patientId)
@@ -64,9 +44,16 @@ const viewPatientDashboard = (patientId: string) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!isDoctor.value) {
     navigateTo('/dashboard')
+    return
+  }
+
+  try {
+    await fetchAuthorizedPatients()
+  } catch (error) {
+    console.error('Failed to load patients:', error)
   }
 })
 </script>
@@ -113,7 +100,7 @@ onMounted(() => {
             class="hover:bg-elevated/50 transition-colors cursor-pointer" @click="viewPatientDashboard(patient.id)">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-4">
-                <UAvatar :alt="patient.name" size="lg" :ui="{ background: 'bg-primary-500' }">
+                <UAvatar :alt="patient.name" size="lg">
                   {{ patient.name.charAt(0) }}
                 </UAvatar>
 
@@ -128,14 +115,6 @@ onMounted(() => {
                     <span class="flex items-center gap-1">
                       <UIcon name="i-lucide-fingerprint" class="size-4" />
                       {{ patient.cpf }}
-                    </span>
-                    <span v-if="patient.age" class="flex items-center gap-1">
-                      <UIcon name="i-lucide-calendar" class="size-4" />
-                      {{ patient.age }} anos
-                    </span>
-                    <span v-if="patient.lastSync" class="flex items-center gap-1">
-                      <UIcon name="i-lucide-refresh-cw" class="size-4" />
-                      {{ formatLastSync(patient.lastSync) }}
                     </span>
                   </div>
                 </div>

@@ -484,8 +484,7 @@ export const useFitbitData = () => {
           title: 'Dados de sono desatualizados',
           description: 'Não há dados de sono recentes. Sincronize seu Fitbit para atualizar.',
           color: 'warning',
-          icon: 'i-lucide-alert-triangle',
-          timeout: 8000
+          icon: 'i-lucide-alert-triangle'
         })
       }
     } catch (error) {

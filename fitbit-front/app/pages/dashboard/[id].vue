@@ -49,12 +49,39 @@ const handleExport = () => {
   router.push('/dashboard/export')
 }
 
-const stepsData = computed(() => getStepsData(range.value.start, range.value.end, period.value))
-const heartRateData = computed(() => getHeartRateData(range.value.start, range.value.end, period.value))
-const sleepData = computed(() => getSleepData(range.value.start, range.value.end, period.value))
-const caloriesData = computed(() => getCaloriesData(range.value.start, range.value.end, period.value))
+const stepsData = ref<Array<{ date: string, value: number }>>([])
+const heartRateData = ref<Array<{ date: string, value: number }>>([])
+const sleepData = ref<Array<{ date: string, value: number }>>([])
+const caloriesData = ref<Array<{ date: string, value: number }>>([])
+const stats = ref<{
+  steps: { total: number; average: number; max: number }
+  heartRate: { average: number; min: number; max: number }
+  sleep: { totalHours: number; averageHours: string }
+  calories: { total: number; average: number }
+} | null>(null)
 
-const stats = computed(() => getStats(range.value.start, range.value.end))
+const fetchData = async () => {
+  isLoadingData.value = true
+  try {
+    stepsData.value = await getStepsData(range.value.start, range.value.end, period.value)
+    heartRateData.value = await getHeartRateData(range.value.start, range.value.end, period.value)
+    sleepData.value = await getSleepData(range.value.start, range.value.end, period.value)
+    caloriesData.value = await getCaloriesData(range.value.start, range.value.end, period.value)
+    stats.value = await getStats(range.value.start, range.value.end)
+  } catch (error) {
+    console.error('Error fetching data:', error)
+  } finally {
+    isLoadingData.value = false
+  }
+}
+
+onMounted(async () => {
+  await fetchData()
+})
+
+watch([range, period], async () => {
+  await fetchData()
+})
 
 const hasData = computed(() =>
   isSimulationMode.value && (
@@ -171,14 +198,14 @@ if (!isSimulationMode.value) {
         </UAlert>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <DashboardStatsCard title="Passos Totais" :value="stats.steps.total.toLocaleString('pt-BR')" subtitle="passos"
-            icon="i-lucide-footprints" color="primary" />
-          <DashboardStatsCard title="Média de Passos" :value="stats.steps.average.toLocaleString('pt-BR')"
+          <DashboardStatsCard title="Passos Totais" :value="stats!.steps.total.toLocaleString('pt-BR')"
+            subtitle="passos" icon="i-lucide-footprints" color="primary" />
+          <DashboardStatsCard title="Média de Passos" :value="stats!.steps.average.toLocaleString('pt-BR')"
             subtitle="por dia" icon="i-lucide-trending-up" color="success" />
-          <DashboardStatsCard title="FC Média" :value="stats.heartRate.average" subtitle="bpm"
+          <DashboardStatsCard title="FC Média" :value="stats!.heartRate.average" subtitle="bpm"
             icon="i-lucide-heart-pulse" color="error" />
-          <DashboardStatsCard title="Sono Médio" :value="stats.sleep.averageHours" subtitle="horas" icon="i-lucide-moon"
-            color="info" />
+          <DashboardStatsCard title="Sono Médio" :value="stats!.sleep.averageHours" subtitle="horas"
+            icon="i-lucide-moon" color="info" />
         </div>
 
         <UCard>

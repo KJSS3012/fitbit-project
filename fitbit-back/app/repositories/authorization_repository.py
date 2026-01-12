@@ -1,9 +1,12 @@
 from sqlalchemy.orm import Session
 from app.models.data_authorization import DataAuthorization
 from app.models.doctor import Doctor
+from app.models.patient import Patient
 from typing import List, Dict
 import json
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
+import logging
 
 
 class AuthorizationRepository:
@@ -47,6 +50,30 @@ class AuthorizationRepository:
         ).all()
         
         return [auth.patient_cpf for auth in authorizations]
+
+    def get_patients_by_doctor(self, doctor_crm: str) -> List[Dict]:
+        """Get list of patients authorized for doctor with their details.
+        
+        Args:
+            doctor_crm: Doctor's CRM number
+            
+        Returns:
+            List of dicts: [{"cpf": str, "name": str}]
+        """
+        authorizations = (
+            self.db.query(DataAuthorization, Patient.cpf, Patient.name)
+            .join(Patient, DataAuthorization.patient_cpf == Patient.cpf)
+            .filter(DataAuthorization.doctor_crm == doctor_crm, DataAuthorization.authorized == True)
+            .all()
+        )
+        
+        return [
+            {
+                "cpf": patient_cpf,
+                "name": patient_name
+            }
+            for auth, patient_cpf, patient_name in authorizations
+        ]
 
     def create_authorization(self, doctor_crm: str, patient_cpf: str, authorized: bool = True) -> DataAuthorization:
         """Create new authorization record.
@@ -216,6 +243,66 @@ class AuthorizationRepository:
         )
         
         self.db.add(db_auth)
-        self.db.commit()
-        self.db.refresh(db_auth)
-        return db_auth
+        try:
+            self.db.commit()
+            self.db.refresh(db_auth)
+            return db_auth
+        except IntegrityError as e:
+            # Likely a foreign key or constraint violation (doctor/patient missing)
+            self.db.rollback()
+            logging.exception("IntegrityError while granting authorization")
+            raise ValueError(f"Falha ao criar autorização: {str(e.orig)}")
+        except Exception as e:
+            self.db.rollback()
+            logging.exception("Unexpected error while granting authorization")
+            raise RuntimeError(f"Erro interno ao criar autorização: {str(e)}")
+
+    def revoke_all_authorizations(self, patient_cpf: str) -> int:
+        """Revoke all doctor authorizations for a patient.
+        
+        Args:
+            patient_cpf: Patient's CPF
+            
+        Returns:
+            Number of authorizations revoked
+        """
+        # Get all authorized doctors for this patient
+        authorizations = self.db.query(DataAuthorization).filter(
+            DataAuthorization.patient_cpf == patient_cpf,
+            DataAuthorization.authorized == True
+        ).all()
+        
+        revoked_count = 0
+        
+        for auth in authorizations:
+            # Revoke authorization
+            auth.authorized = False
+            
+            # Append audit log
+            audit_entry = {
+                "action": "revoke_all",
+                "timestamp": datetime.utcnow().isoformat(),
+                "by": "patient"
+            }
+            
+            if auth.audit_log:
+                try:
+                    audit_list = json.loads(auth.audit_log)
+                except json.JSONDecodeError:
+                    audit_list = []
+            else:
+                audit_list = []
+            
+            audit_list.append(audit_entry)
+            auth.audit_log = json.dumps(audit_list)
+            
+            revoked_count += 1
+        
+        # Commit all changes
+        try:
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            raise RuntimeError(f"Erro ao revogar autorizações: {str(e)}")
+        
+        return revoked_count

@@ -2,9 +2,15 @@
 import type { NavigationMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
-const { user, isDoctor, isPatient } = useAuth()
+const { user, isDoctor, isPatient, fetchUser } = useAuth()
 
 const open = ref(false)
+
+onMounted(async () => {
+  if (!user.value) {
+    await fetchUser()
+  }
+})
 
 const links = computed(() => {
   if (isDoctor.value) {
@@ -66,7 +72,5 @@ const groups = computed(() => [{
     <UDashboardSearch :groups="groups" />
 
     <slot />
-
-    <DashboardNotificationsSlideover />
   </UDashboardGroup>
 </template>

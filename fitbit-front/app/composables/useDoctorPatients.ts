@@ -23,18 +23,16 @@ export const useDoctorPatients = () => {
     isLoading.value = true
 
     try {
-      // For now, use mock data since we don't have /doctors/patients endpoint yet
-      // TODO: Implement GET /doctors/{crm}/patients backend endpoint
-      authorizedPatients.value = [
+      const response = await $fetch<any[]>(
+        `${API_BASE_URL}/user/doctor/patients`,
         {
-          cpf: '52998224725',
-          name: 'João da Silva',
-          age: 45,
-          status: 'active',
-          lastSync: '2026-01-10T14:30:00'
+          headers: {
+            Authorization: `Bearer ${token.value}`
+          }
         }
-      ]
+      )
 
+      authorizedPatients.value = response
       return authorizedPatients.value
     } catch (error: any) {
       console.error('Error fetching patients:', error)
@@ -75,7 +73,7 @@ export const useDoctorPatients = () => {
       if (endDate) params.end_date = endDate
 
       const response = await $fetch(
-        `${API_BASE_URL}/users/patients/${patientCpf}/health-metrics`,
+        `${API_BASE_URL}/user/patients/${patientCpf}/health-metrics`,
         {
           params,
           headers: {

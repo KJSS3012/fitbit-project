@@ -13,20 +13,20 @@ const days = computed(() => eachDayOfInterval(props.range))
 const periods = computed<Period[]>(() => {
   if (days.value.length <= 8) {
     return [
-      'daily'
+      'day'
     ]
   }
 
   if (days.value.length <= 31) {
     return [
-      'daily',
-      'weekly'
+      'day',
+      'week'
     ]
   }
 
   return [
-    'weekly',
-    'monthly'
+    'week',
+    'month'
   ]
 })
 
@@ -38,9 +38,10 @@ watch(periods, () => {
 })
 
 const periodLabels = {
-  daily: 'Diário',
-  weekly: 'Semanal',
-  monthly: 'Mensal'
+  day: 'Diário',
+  week: 'Semanal',
+  month: 'Mensal',
+  custom: 'Personalizado'
 }
 
 const periodItems = computed(() => periods.value.map(p => ({

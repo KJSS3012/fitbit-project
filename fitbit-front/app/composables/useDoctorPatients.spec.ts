@@ -44,7 +44,7 @@ describe('useDoctorPatients', () => {
 
     expect(result).toEqual(mockResponse)
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:8000/users/patients/52998224725/health-metrics',
+      'http://localhost:8000/user/patients/52998224725/health-metrics',
       expect.objectContaining({
         params: { doctor_crm: '12345SP' },
         headers: {
@@ -178,7 +178,7 @@ function useDoctorPatients() {
       if (endDate) params.end_date = endDate
 
       const response = await $fetch(
-        `http://localhost:8000/users/patients/${patientCpf}/health-metrics`,
+        `http://localhost:8000/user/patients/${patientCpf}/health-metrics`,
         {
           params,
           headers: {

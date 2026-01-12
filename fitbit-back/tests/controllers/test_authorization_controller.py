@@ -239,3 +239,63 @@ class TestPatientAuthorizationControl:
         
         assert response.status_code == 400
         assert "vinculado" in response.json()["detail"].lower()
+
+    @patch('app.repositories.authorization_repository.AuthorizationRepository.revoke_all_authorizations')
+    def test_revoke_all_authorizations_success(self, mock_revoke_all):
+        """
+        DADO: Paciente com autorizações ativas
+        QUANDO: DELETE /auth/doctors/all
+        ENTÃO: Retorna 200 com mensagem de sucesso e count
+        """
+        mock_revoke_all.return_value = 3
+        
+        response = client_patient.delete("/auth/doctors/all")
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "3 autorizações revogadas" in data["message"]
+        assert data["revoked_count"] == 3
+        mock_revoke_all.assert_called_once()
+
+    @patch('app.repositories.authorization_repository.AuthorizationRepository.revoke_all_authorizations')
+    def test_revoke_all_authorizations_none(self, mock_revoke_all):
+        """
+        DADO: Paciente sem autorizações ativas
+        QUANDO: DELETE /auth/doctors/all
+        ENTÃO: Retorna 200 com mensagem apropriada
+        """
+        mock_revoke_all.return_value = 0
+        
+        response = client_patient.delete("/auth/doctors/all")
+        
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert "nenhuma autorização" in data["message"].lower()
+        assert data["revoked_count"] == 0
+
+    @patch('app.repositories.authorization_repository.AuthorizationRepository.revoke_all_authorizations')
+    def test_revoke_all_authorizations_audit_error(self, mock_revoke_all):
+        """
+        DADO: Erro ao registrar auditoria durante revoke all
+        QUANDO: DELETE /auth/doctors/all
+        ENTÃO: Retorna 500 com mensagem de erro
+        """
+        mock_revoke_all.side_effect = RuntimeError("Erro ao registrar auditoria")
+        
+        response = client_patient.delete("/auth/doctors/all")
+        
+        assert response.status_code == 500
+        assert "auditoria" in response.json()["detail"].lower()
+
+    def test_revoke_all_authorizations_doctor_forbidden(self):
+        """
+        DADO: Usuário é médico
+        QUANDO: DELETE /auth/doctors/all
+        ENTÃO: Retorna 403 "Apenas pacientes podem revogar autorizações"
+        """
+        response = client_doctor.delete("/auth/doctors/all")
+        
+        assert response.status_code == 403
+        assert "apenas pacientes" in response.json()["detail"].lower()

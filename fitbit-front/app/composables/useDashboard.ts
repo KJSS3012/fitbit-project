@@ -48,9 +48,17 @@ const _useDashboard = () => {
     }
 
     return {
-      start: start.toISOString().split('T')[0]!,
-      end: end.toISOString().split('T')[0]!
+      start: formatLocalDate(start),
+      end: formatLocalDate(end)
     }
+  }
+
+  // Helper to format a Date as YYYY-MM-DD in local timezone
+  const formatLocalDate = (d: Date) => {
+    const yyyy = d.getFullYear()
+    const mm = `${d.getMonth() + 1}`.padStart(2, '0')
+    const dd = `${d.getDate()}`.padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
   }
 
   /**
@@ -67,10 +75,11 @@ const _useDashboard = () => {
       return false
     }
 
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    // Parse as local dates to avoid timezone/UTC midnight issues
+    const start = new Date(`${startDate}T00:00:00`)
+    const end = new Date(`${endDate}T23:59:59.999`)
     const today = new Date()
-    today.setHours(23, 59, 59, 999) // Set to end of today
+    today.setHours(23, 59, 59, 999) // end of today (local)
 
     if (start > end) {
       toast.add({

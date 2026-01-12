@@ -20,17 +20,9 @@ const links = [[{
   to: '/dashboard/settings',
   exact: true
 }, {
-  label: 'Notificações',
-  icon: 'i-lucide-bell',
-  to: '/dashboard/settings/notifications'
-}, {
   label: 'Segurança',
   icon: 'i-lucide-shield',
   to: '/dashboard/settings/security'
-}, {
-  label: 'Fitbit',
-  icon: 'i-simple-icons-fitbit',
-  to: '/dashboard/settings/fitbit'
 }]] satisfies NavigationMenuItem[][]
 </script>
 

@@ -39,9 +39,10 @@ const max = computed(() => Math.max(...chartData.value.map(d => d.value)))
 
 const formatDate = (date: Date): string => {
   return ({
-    daily: format(date, 'd MMM'),
-    weekly: format(date, 'd MMM'),
-    monthly: format(date, 'MMM yyyy')
+    day: format(date, 'd MMM'),
+    week: format(date, 'd MMM'),
+    month: format(date, 'MMM yyyy'),
+    custom: format(date, 'd MMM')
   })[props.period]
 }
 

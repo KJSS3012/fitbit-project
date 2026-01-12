@@ -12,6 +12,7 @@ from app.models.patient_metrics import PatientMetrics
 from app.core.security import get_password_hash
 from app.repositories.authorization_repository import AuthorizationRepository
 from app.repositories.patient_repository import PatientRepository
+from app.repositories.doctor_repository import DoctorRepository
 
 router = APIRouter(tags=["User"])
 
@@ -48,6 +49,12 @@ class HealthMetricsResponse(BaseModel):
     last_sync: Optional[str] = None
     is_data_outdated: bool = False
     total_records: int
+
+
+class DoctorPatientResponse(BaseModel):
+    """Response model for doctor's authorized patients."""
+    cpf: str
+    name: str
 
 
 @router.get("/me")
@@ -220,6 +227,10 @@ def get_patient_health_metrics(
     elif period == "monthly":
         end_date = datetime.now().date().isoformat()
         start_date = (datetime.now() - timedelta(days=30)).date().isoformat()
+    else:
+        # Default to last 7 days if no period specified
+        end_date = datetime.now().date().isoformat()
+        start_date = (datetime.now() - timedelta(days=7)).date().isoformat()
     
     # Get metrics
     metrics = patient_repo.get_metrics(cpf, start_date, end_date)
@@ -250,3 +261,33 @@ def get_patient_health_metrics(
         is_data_outdated=is_outdated,
         total_records=len(metrics)
     )
+
+
+@router.get("/doctor/patients", response_model=List[DoctorPatientResponse])
+def get_doctor_patients(
+    current_user: Dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> List[DoctorPatientResponse]:
+    """
+    Get list of patients authorized for current doctor.
+    
+    **PB11**: Doctor can view list of patients who shared their data.
+    
+    Returns:
+        List of authorized patients with CPF and name
+    """
+    # Only doctors can access this endpoint
+    if current_user.get("type") != "doctor":
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas médicos podem acessar esta funcionalidade."
+        )
+    
+    doctor_crm = current_user.get("sub")
+    if not doctor_crm:
+        raise HTTPException(status_code=400, detail="CRM do médico não encontrado.")
+    
+    auth_repo = AuthorizationRepository(db)
+    patients = auth_repo.get_patients_by_doctor(doctor_crm)
+    
+    return [DoctorPatientResponse(**patient) for patient in patients]

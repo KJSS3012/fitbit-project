@@ -133,7 +133,7 @@ def login_doctor(credentials_in: DoctorLogin, db: Session) -> JSONResponse:
         return JSONResponse(status_code=401, content={"detail": "Credenciais inválidas"})
 
     access_token = create_access_token(
-        subject=doctor_record.cpf, user_type="doctor"
+        subject=doctor_record.crm, user_type="doctor"
     )
 
     return JSONResponse(
