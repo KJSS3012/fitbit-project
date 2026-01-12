@@ -6,6 +6,14 @@ const { user, token } = useAuth()
 const config = useRuntimeConfig()
 const toast = useToast()
 
+// Initialize Fitbit auth to handle OAuth redirects
+const { checkFitbitStatus } = useFitbitAuth()
+
+// Check Fitbit status on page load (handles OAuth redirects)
+onMounted(async () => {
+  await checkFitbitStatus()
+})
+
 const profileSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   password: z.string().min(12, 'Senha deve ter pelo menos 12 caracteres').optional().or(z.literal(''))

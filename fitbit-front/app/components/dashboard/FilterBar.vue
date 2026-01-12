@@ -5,7 +5,7 @@ const { selectedPeriod, changePeriod, setCustomDateRange, customDateRange } = us
 
 type FilterPeriod = 'day' | 'week' | 'month' | 'custom'
 
-const showCustomDialog = ref(false)
+const showCustomDialog = ref(true)
 const startDate = ref('')
 const endDate = ref('')
 

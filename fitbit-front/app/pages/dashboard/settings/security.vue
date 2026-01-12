@@ -37,6 +37,8 @@ const {
   isLoading: authLoading
 } = useAuthorization()
 
+const { checkFitbitStatus } = useFitbitAuth()
+
 const newDoctorCrm = ref('')
 const isAddingDoctor = ref(false)
 
@@ -65,14 +67,7 @@ const handleToggleDoctor = async (doctorCrm: string, doctorName: string) => {
   }
 }
 
-const showRevokeAllModal = ref(false)
-
 const handleRevokeAll = async () => {
-  showRevokeAllModal.value = true
-}
-
-const confirmRevokeAll = async () => {
-  showRevokeAllModal.value = false
   try {
     await revokeAllAuthorizations()
     // Refresh the list after revoking all
@@ -86,6 +81,7 @@ const confirmRevokeAll = async () => {
 onMounted(async () => {
   try {
     await fetchAuthorizedDoctors()
+    await checkFitbitStatus()
   } catch (err) {
     console.error('Failed to load authorized doctors:', err)
   }
@@ -181,36 +177,30 @@ async function onSubmit() {
               <UBadge :color="doctor.authorized ? 'success' : 'error'" variant="subtle">
                 {{ doctor.authorized ? 'Autorizado' : 'Revogado' }}
               </UBadge>
-              <UToggle :model-value="doctor.authorized"
+              <USwitch :model-value="doctor.authorized"
                 @update:model-value="handleToggleDoctor(doctor.crm, doctor.doctor_name)" :disabled="authLoading" />
             </div>
           </div>
         </UCard>
       </div>
     </div>
-  </UPageCard>
 
-  <!-- Revoke All Confirmation Modal -->
-  <UModal v-model="showRevokeAllModal">
-    <div class="p-6">
-      <div class="flex items-center gap-3 mb-4">
-        <UAvatar size="sm" color="error">
-          <UIcon name="i-heroicons-exclamation-triangle" class="size-5" />
-        </UAvatar>
-        <h3 class="text-lg font-semibold">Revogar Todas as Autorizações</h3>
-      </div>
-      <p class="text-muted mb-6">
-        Tem certeza de que deseja revogar o acesso de todos os médicos aos seus dados?
-        Esta ação não pode ser desfeita.
-      </p>
-      <div class="flex gap-3 justify-end">
-        <UButton variant="outline" @click="showRevokeAllModal = false">
-          Cancelar
-        </UButton>
-        <UButton color="error" @click="confirmRevokeAll">
+    <!-- Revoke All Authorizations Card -->
+    <div v-if="authorizedDoctors.length > 0" class="mt-6 p-4 bg-error/5 rounded-lg border border-error/20">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <UAvatar size="sm" color="error">
+            <UIcon name="i-heroicons-exclamation-triangle" class="size-5" />
+          </UAvatar>
+          <div>
+            <h3 class="font-medium text-error">Revogar Todas as Autorizações</h3>
+            <p class="text-sm text-muted">Remove o acesso de todos os médicos aos seus dados</p>
+          </div>
+        </div>
+        <UButton color="error" variant="outline" @click="handleRevokeAll">
           Revogar Todos
         </UButton>
       </div>
     </div>
-  </UModal>
+  </UPageCard>
 </template>

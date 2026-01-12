@@ -140,7 +140,7 @@ def callback(
     db: Session = Depends(get_db)
 ):
     """Exchange authorization code for tokens and persist them."""
-    frontend_url = "http://localhost:3000/dashboard/settings/fitbit"
+    frontend_url = "http://localhost:3000/dashboard/settings"
     
     # Usuário negou acesso
     if error == "access_denied":
