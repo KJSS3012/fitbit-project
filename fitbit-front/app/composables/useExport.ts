@@ -51,10 +51,12 @@ export const useExport = () => {
   const exportSimulatedData = async (format: ExportFormat, startDate: Date, endDate: Date, patientId: string) => {
     await new Promise(resolve => setTimeout(resolve, 1000))
 
-    const stepsData = getStepsData(startDate, endDate, 'daily')
-    const heartRateData = getHeartRateData(startDate, endDate, 'daily')
-    const sleepData = getSleepData(startDate, endDate, 'daily')
-    const caloriesData = getCaloriesData(startDate, endDate, 'daily')
+    const [stepsData, heartRateData, sleepData, caloriesData] = await Promise.all([
+      getStepsData(startDate, endDate, 'daily'),
+      getHeartRateData(startDate, endDate, 'daily'),
+      getSleepData(startDate, endDate, 'daily'),
+      getCaloriesData(startDate, endDate, 'daily')
+    ])
 
     const exportData = {
       metadata: {

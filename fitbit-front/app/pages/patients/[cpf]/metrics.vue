@@ -205,50 +205,9 @@ const heartRateData = computed(() => {
 const sleepData = computed(() => {
   if (!selectedPatientMetrics.value?.metrics) return []
 
-  return s < UButton : color = "selectedPeriod === 'custom' ? 'primary' : 'neutral'"
-              : variant = "selectedPeriod === 'custom' ? 'solid' : 'ghost'" @click="openCustomDialog" >
-  {{ selectedPeriod === 'custom' && customStartDate ? 'Personalizado ✓' : 'Personalizado' }}
-</UButton>
-  </UButtonGroup>
-  </div>
-
-  < !--Custom Date Range Modal-- >
-    <UModal v - model="showCustomDialog" title = "Período Personalizado" >
-      <template #body >
-      <div class="space-y-4" >
-        <div class="space-y-2" >
-          <label for= "startDate" class= "block text-sm font-medium text-gray-700 dark:text-gray-300" >
-            Data Inicial < span class="text-red-500" >* </span>
-              </label>
-              < UInput id = "startDate" v - model="customStartDate" type = "date" icon = "i-lucide-calendar"
-placeholder = "Selecione a data inicial" aria - label="Selecione a data inicial" />
-  </div>
-
-  < div class="space-y-2" >
-    <label for= "endDate" class= "block text-sm font-medium text-gray-700 dark:text-gray-300" >
-      Data Final < span class="text-red-500" >* </span>
-        </label>
-        < UInput id = "endDate" v - model="customEndDate" type = "date" icon = "i-lucide-calendar"
-placeholder = "Selecione a data final" aria - label="Selecione a data final" />
-  </div>
-
-  < UAlert color = "info" variant = "subtle" icon = "i-lucide-info" title = "Importante" >
-    <template #description >
-    O período personalizado não pode exceder 1 ano e a data final não pode ser posterior à data de hoje.
-                </template>
-      </UAlert>
-      </div>
-      </template>
-
-      < template #footer >
-        <div class="flex justify-end gap-2" >
-          <UButton label="Cancelar" color = "neutral" variant = "ghost" @click="cancelCustomRange" />
-            <UButton label="Aplicar Filtro" color = "primary" 
-                : disabled = "!customStartDate || !customEndDate" @click="applyCustomRange" />
-  </div>
-  </template>
-  </UModalate,
-value: m.sleep_hours
+  return selectedPatientMetrics.value.metrics.map((m: any) => ({
+    date: m.date,
+    value: m.sleep_hours
   })).reverse()
 })
 
