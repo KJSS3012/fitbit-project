@@ -71,7 +71,7 @@ class TestCreatePatient:
             assert response.status_code == 409
             import json
             data = json.loads(response.body)
-            assert "already registered" in data["detail"].lower()
+            assert "cpf já está cadastrado" in data["detail"].lower()
 
 
 class TestLoginPatient:
@@ -131,4 +131,4 @@ class TestLoginPatient:
             assert response.status_code == 401
             import json
             data = json.loads(response.body)
-            assert "invalid" in data["detail"].lower()
+            assert "credenciais inválidas" in data["detail"].lower()

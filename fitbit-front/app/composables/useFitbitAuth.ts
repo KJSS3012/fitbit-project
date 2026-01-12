@@ -33,9 +33,9 @@ export const useFitbitAuth = () => {
   const checkFitbitStatus = async () => {
     try {
       const { token } = useAuth()
+      const route = useRoute()
 
       // Check URL query first for immediate feedback
-      const route = useRoute()
       if (route.query.fitbit === 'connected') {
         isFitbitConnected.value = true
 
@@ -44,6 +44,42 @@ export const useFitbitAuth = () => {
           description: 'Seus dados Fitbit estão sendo sincronizados',
           color: 'success',
           icon: 'i-heroicons-check-circle'
+        })
+
+        // Clean URL
+        const router = useRouter()
+        router.replace({ query: {} })
+        return
+      }
+
+      // User denied access
+      if (route.query.fitbit === 'denied') {
+        isFitbitConnected.value = false
+        isConnecting.value = false
+
+        toast.add({
+          title: 'Conexão cancelada pelo usuário',
+          description: 'Você pode tentar conectar novamente quando quiser',
+          color: 'warning',
+          icon: 'i-heroicons-exclamation-triangle'
+        })
+
+        // Clean URL
+        const router = useRouter()
+        router.replace({ query: {} })
+        return
+      }
+
+      // Server/token error
+      if (route.query.fitbit === 'error') {
+        isFitbitConnected.value = false
+        isConnecting.value = false
+
+        toast.add({
+          title: 'Erro ao finalizar conexão',
+          description: 'Tente novamente mais tarde',
+          color: 'error',
+          icon: 'i-heroicons-x-circle'
         })
 
         // Clean URL

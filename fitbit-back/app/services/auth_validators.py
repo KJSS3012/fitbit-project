@@ -5,45 +5,45 @@ from typing import List
 def validate_name(name: str) -> str | None:
     
     if not name or not name.strip():
-        return "Name is required or cannot be empty."
+        return "Nome é obrigatório"
     
     name_stripped = name.strip()
 
     if name != name_stripped:
-        return "Name cannot have leading or trailing spaces."
+        return "Nome não pode ter espaços no início ou fim"
 
     elif len(name_stripped) > 150:
-        return "Name must contain a maximum of 150 characters."
+        return "Nome deve conter no máximo 150 caracteres"
 
     elif not re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿ]+( [A-Za-zÀ-ÖØ-öø-ÿ]+)*", name_stripped):
-        return "Name must contain only letters and single spaces between words."
+        return "Nome deve conter apenas letras e espaços simples entre palavras"
 
     return None
 
 # --- Password Complexity Validation ---
 def check_password_complexity(password: str) -> str | None:
-    """Checks the password and returns the first failed rule or None."""
+    """Valida complexidade da senha e retorna primeira regra violada ou None."""
     
     if len(password) > 255:
-        return "The password must contain a maximum of 255 characters."
+        return "A senha deve conter no máximo 255 caracteres"
 
     elif len(password) < 12:
-        return "Password must contain at least 12 characters."
+        return "Senha deve conter pelo menos 12 caracteres"
 
     elif re.search(r'\s', password):
-        return "Password must not contain spaces."
+        return "Senha não pode conter espaços"
 
     elif not re.search(r'[A-Z]', password):
-        return "Password must contain at least one uppercase letter."
+        return "Senha deve conter pelo menos uma letra maiúscula"
 
     elif not re.search(r'[a-z]', password):
-        return "Password must contain at least one lowercase letter."
+        return "Senha deve conter pelo menos uma letra minúscula"
 
     elif not re.search(r'\d', password):
-        return "Password must contain at least one digit."
+        return "Senha deve conter pelo menos um número"
 
     elif not re.search(r'[!@#$%^&*()_+={}\[\]|\\:;"\'<>,.?/~`]', password):
-        return "Password must contain at least one special character."
+        return "Senha deve conter pelo menos um caractere especial"
 
     return None
 
@@ -53,16 +53,16 @@ def validate_cpf(cpf: str) -> str | None:
     cpf = cpf.strip()
 
     if not cpf:
-        return "CPF is required."
+        return "CPF é obrigatório"
 
     elif not cpf.isdigit():
-        return "CPF must contain only digits."
+        return "CPF deve conter apenas dígitos"
 
     elif len(cpf) != 11:
-        return "CPF must contain exactly 11 digits."
+        return "CPF deve conter exatamente 11 dígitos"
 
     elif cpf == cpf[0] * 11:
-        return "Invalid CPF."
+        return "CPF inválido"
     
     def calc_digit(seq: str, factor: int) -> int:
         total = sum(int(d) * (factor - i) for i, d in enumerate(seq))
@@ -70,10 +70,10 @@ def validate_cpf(cpf: str) -> str | None:
         return 0 if remainder < 2 else 11 - remainder
 
     if int(cpf[9]) != calc_digit(cpf[:9], 10):
-        return "Invalid CPF."
+        return "CPF inválido"
 
     elif int(cpf[10]) != calc_digit(cpf[:10], 11):
-        return "Invalid CPF."
+        return "CPF inválido"
 
     return None
 
@@ -90,17 +90,17 @@ def validate_crm(crm: str) -> str | None:
     crm = crm.strip().upper()
 
     if not crm:
-        return "CRM is required."
+        return "CRM é obrigatório"
 
     elif len(crm) != 8:
-        return "CRM must be exactly 8 characters (2 letters + 6 digits)."
+        return "CRM deve ter exatamente 8 caracteres (2 letras + 6 dígitos)"
 
     elif not re.fullmatch(r"[A-Z]{2}\d{6}", crm):
-        return "Invalid CRM format. Expected format: SP123456 (2 letters for state and 6 digits)."
+        return "Formato de CRM inválido. Formato esperado: SP123456 (2 letras do estado e 6 dígitos)"
 
     acronym = crm[:2]
     
     if acronym not in VALID_UFS:
-        return f"The state acronym '{acronym}' is not valid."
+        return f"A sigla do estado '{acronym}' não é válida"
 
     return None

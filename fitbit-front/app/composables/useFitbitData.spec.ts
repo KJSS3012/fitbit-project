@@ -150,3 +150,73 @@ describe('useFitbitData - Toggle Exclusivo', () => {
     }
   })
 })
+
+describe('useFitbitData - Sleep Data Freshness Check', () => {
+  const mockToast = {
+    add: vi.fn()
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubGlobal('useToast', () => mockToast)
+    mockIsFitbitConnected.value = true
+    mockToken.value = 'test-token'
+  })
+
+  it('deve mostrar toast quando sleep data > 15 dias', async () => {
+    const { checkSleepDataFreshness } = useFitbitData()
+
+      ; (global as any).$fetch = vi.fn().mockResolvedValue({
+        period: '7d',
+        days_analyzed: 7,
+        steps_total: 50000,
+        steps_average: 7142,
+        steps_max: 12000,
+        hr_average: 72,
+        hr_min: 60,
+        hr_max: 85,
+        sleep_total_hours: 50.5,
+        sleep_average_hours: 7.2,
+        calories_total: 14000,
+        calories_average: 2000,
+        last_data_date: '2025-12-10',
+        days_since_last_data: 20 // > 15 days
+      })
+
+    await checkSleepDataFreshness('7d')
+
+    expect(mockToast.add).toHaveBeenCalledWith({
+      title: 'Dados de sono desatualizados',
+      description: 'Não há dados de sono recentes. Sincronize seu Fitbit para atualizar.',
+      color: 'warning',
+      icon: 'i-lucide-alert-triangle',
+      timeout: 8000
+    })
+  })
+
+  it('NÃO deve mostrar toast quando sleep data <= 15 dias', async () => {
+    const { checkSleepDataFreshness } = useFitbitData()
+
+      ; (global as any).$fetch = vi.fn().mockResolvedValue({
+        period: '7d',
+        days_analyzed: 7,
+        last_data_date: '2026-01-05',
+        days_since_last_data: 6 // <= 15 days, OK
+      })
+
+    await checkSleepDataFreshness('7d')
+
+    expect(mockToast.add).not.toHaveBeenCalled()
+  })
+
+  it('deve falhar silenciosamente se Fitbit não conectado', async () => {
+    const { checkSleepDataFreshness } = useFitbitData()
+    mockIsFitbitConnected.value = false
+
+    await checkSleepDataFreshness('7d')
+
+    expect((global as any).$fetch).not.toHaveBeenCalled()
+    expect(mockToast.add).not.toHaveBeenCalled()
+  })
+})
+

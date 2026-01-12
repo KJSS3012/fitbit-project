@@ -57,10 +57,11 @@ const formatLastSync = (dateString: string) => {
 }
 
 const viewPatientDashboard = (patientId: string) => {
-  // Security: Doctors manage patients but don't access individual patient dashboards via URL
-  // Patient data is fetched via API using JWT, not exposed in URL
-  // Future: Implement doctor-specific patient view if needed
-  console.log('View patient:', patientId)
+  // Navigate to patient metrics page with CPF
+  const patient = patients.value.find(p => p.id === patientId)
+  if (patient) {
+    router.push(`/patients/${patient.cpf.replace(/\D/g, '')}/metrics`)
+  }
 }
 
 onMounted(() => {

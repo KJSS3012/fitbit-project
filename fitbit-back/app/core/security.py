@@ -17,6 +17,10 @@ JWT_SECRET = os.getenv("JWT_SECRET", "change_me")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", 60))
 
+# Aliases for backward compatibility with tests
+SECRET_KEY = JWT_SECRET
+ALGORITHM = JWT_ALGORITHM
+
 security_scheme = HTTPBearer()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
