@@ -30,8 +30,8 @@ from app.repositories.doctor_repository import DoctorRepository
 # PATIENT LOGIC
 # =========================
 def create_patient(patient_in: PatientCreate, db: Session) -> JSONResponse:
-    """Cria um novo paciente no sistema."""
-    patient_in.name = patient_in.name.upper().strip()
+    """Cria um novo paciente com validação cruzada de CPF."""
+    patient_in.name = patient_in.name.strip()
     patient_in.cpf = patient_in.cpf.strip()
     patient_in.password = patient_in.password.strip()
 
@@ -48,17 +48,19 @@ def create_patient(patient_in: PatientCreate, db: Session) -> JSONResponse:
     if password_error:
         return JSONResponse(status_code=400, content={"detail": password_error})
 
-    # Verifica se CPF já existe
+    # Repositórios para checagem cruzada
     patient_repo = PatientRepository(db)
-    existing_patient = patient_repo.find_by_cpf(patient_in.cpf)
-    if existing_patient:
+    doctor_repo = DoctorRepository(db)
+
+    # Verifica se CPF já existe em qualquer um dos perfis
+    if patient_repo.find_by_cpf(patient_in.cpf) or doctor_repo.find_by_cpf(patient_in.cpf):
         return JSONResponse(status_code=409, content={"detail": "O CPF já está cadastrado"})
 
     # Cria paciente
     password_hash = get_password_hash(patient_in.password)
     db_patient = patient_repo.create(patient_in, password_hash)
 
-    response_data = PatientResponse(cpf=db_patient.cpf, name=db_patient.name)
+    response_data = PatientResponse(cpf=db_patient.cpf, name=db_patient.name.upper())
     return JSONResponse(status_code=201, content=jsonable_encoder(response_data))
 
 
@@ -88,24 +90,36 @@ def login_patient(credentials_in: PatientLogin, db: Session) -> JSONResponse:
 # DOCTOR LOGIC
 # =========================
 def create_doctor(doctor_in: DoctorCreate, db: Session) -> JSONResponse:
-    """Cria um novo médico no sistema."""
+    """Cria um novo médico com validação cruzada de CPF."""
     doctor_in.cpf = doctor_in.cpf.strip()
     doctor_in.crm = doctor_in.crm.upper().strip()
-    doctor_in.name = doctor_in.name.upper().strip()
+    doctor_in.name = doctor_in.name.strip()
+    doctor_in.password = doctor_in.password.strip()
 
     # Validações
     crm_error = validate_crm(doctor_in.crm)
     if crm_error:
         return JSONResponse(status_code=400, content={"detail": crm_error})
 
+    name_error = validate_name(doctor_in.name)
+    if name_error:
+        return JSONResponse(status_code=400, content={"detail": name_error})
+
     password_error = check_password_complexity(doctor_in.password)
     if password_error:
         return JSONResponse(status_code=400, content={"detail": password_error})
 
-    # Verifica se CPF ou CRM já existem
+    # Repositórios
     doctor_repo = DoctorRepository(db)
-    if doctor_repo.find_by_cpf(doctor_in.cpf) or doctor_repo.find_by_crm(doctor_in.crm):
+    patient_repo = PatientRepository(db)
+
+    # Verifica duplicidade de CRM
+    if doctor_repo.find_by_crm(doctor_in.crm):
         return JSONResponse(status_code=409, content={"detail": "Médico já cadastrado"})
+
+    # Verifica duplicidade de CPF em ambos os perfis
+    if doctor_repo.find_by_cpf(doctor_in.cpf) or patient_repo.find_by_cpf(doctor_in.cpf):
+        return JSONResponse(status_code=409, content={"detail": "O CPF já está cadastrado"})
 
     # Cria médico
     password_hash = get_password_hash(doctor_in.password)
@@ -113,7 +127,7 @@ def create_doctor(doctor_in: DoctorCreate, db: Session) -> JSONResponse:
 
     response_data = DoctorResponse(
         cpf=db_doctor.cpf,
-        name=db_doctor.name,
+        name=db_doctor.name.upper(),
         crm=db_doctor.crm,
     )
 
