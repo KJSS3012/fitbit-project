@@ -24,10 +24,8 @@ const periodTabs = computed<TabsItem[]>(() => [
   { label: 'Semana', value: 'week' },
   { label: 'Mês', value: 'month' },
   {
-    label: 'Personalizado',
-    value: 'custom',
-    disabled: !customDateRange.value,
-    badge: customDateRange.value ? '✓' : undefined
+    label: customDateRange.value ? 'Personalizado ✓' : 'Personalizado',
+    value: 'custom'
   }
 ])
 
@@ -38,18 +36,26 @@ const openFilterDialog = () => {
   if (customDateRange.value) {
     startDate.value = customDateRange.value.start
     endDate.value = customDateRange.value.end
+  } else {
+    // Pre-fill with last week by default
+    const today = new Date()
+    const lastWeek = new Date()
+    lastWeek.setDate(today.getDate() - 7)
+    startDate.value = lastWeek.toISOString().split('T')[0]!
+    endDate.value = today.toISOString().split('T')[0]!
   }
   showCustomDialog.value = true
 }
 
 /**
- * Handles tab change. Prevents selecting 'custom' tab without saved range.
+ * Handles tab change. Opens modal if 'custom' is clicked.
  */
 const onPeriodTabChange = (value: string | number) => {
   const next = value as FilterPeriod
 
-  if (next === 'custom' && !customDateRange.value) {
-    activePeriod.value = lastNonCustomPeriod.value
+  if (next === 'custom') {
+    // Open modal instead of immediately switching
+    openFilterDialog()
     return
   }
 
@@ -68,6 +74,10 @@ const applyCustomRange = () => {
 
 const cancelCustomRange = () => {
   showCustomDialog.value = false
+  // Reset to last non-custom period if custom was never saved
+  if (!customDateRange.value) {
+    activePeriod.value = lastNonCustomPeriod.value
+  }
   startDate.value = ''
   endDate.value = ''
 }
@@ -81,10 +91,7 @@ const isFormValid = computed(() => {
   <div class="flex items-center gap-3 flex-wrap">
     <UTabs :model-value="activePeriod" :items="periodTabs" @update:modelValue="onPeriodTabChange" />
 
-    <UModal v-model="showCustomDialog" title="Período Customizado">
-      <UButton icon="i-lucide-filter" color="neutral" variant="ghost" size="sm" square
-        aria-label="Filtro personalizado" />
-
+    <UModal v-model="showCustomDialog" title="Período Personalizado">
       <template #body>
         <div class="space-y-4">
           <div class="space-y-2">
@@ -102,6 +109,12 @@ const isFormValid = computed(() => {
             <UInput id="endDate" v-model="endDate" type="date" icon="i-lucide-calendar"
               placeholder="Selecione a data final" aria-label="Selecione a data final" />
           </div>
+
+          <UAlert color="info" variant="subtle" icon="i-lucide-info" title="Importante">
+            <template #description>
+              O período personalizado não pode exceder 1 ano e a data final não pode ser posterior à data de hoje.
+            </template>
+          </UAlert>
         </div>
       </template>
 

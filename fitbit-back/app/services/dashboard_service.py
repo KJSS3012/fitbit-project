@@ -31,24 +31,24 @@ def get_dashboard_metrics(
         calculated_end = today
     elif period == "custom" or (start_date and end_date):
         if not start_date or not end_date:
-            raise HTTPException(status_code=400, detail="Initial and final dates are required for custom period.")
+            raise HTTPException(status_code=400, detail="Data inicial e final são obrigatórias para o período customizado.")
         
         try:
             calculated_start = datetime.strptime(start_date, "%Y-%m-%d")
             calculated_end = datetime.strptime(end_date, "%Y-%m-%d")
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+            raise HTTPException(status_code=400, detail="Formato de data inválido. Use YYYY-MM-DD.")
 
         if calculated_start > calculated_end:
-            raise HTTPException(status_code=400, detail="Initial date cannot be greater than final date.")
+            raise HTTPException(status_code=400, detail="Período inválido. Verifique as datas informadas.")
         
         if calculated_end > today:
-            raise HTTPException(status_code=400, detail="The date cannot be later than today's date.")
+            raise HTTPException(status_code=400, detail="A data final não pode ser posterior à data de hoje.")
 
         if (calculated_end - calculated_start).days > 365:
-            raise HTTPException(status_code=400, detail="The custom period cannot exceed 365 days.")
+            raise HTTPException(status_code=400, detail="O período customizado não pode exceder 365 dias.")
     else:
-        raise HTTPException(status_code=400, detail="Invalid period or missing dates")
+        raise HTTPException(status_code=400, detail="Período inválido ou datas ausentes.")
 
     start_str = calculated_start.strftime("%Y-%m-%d")
     end_str = calculated_end.strftime("%Y-%m-%d")
@@ -90,7 +90,7 @@ def validate_data_volume(records: list, period: str):
     if period == "monthly" and len(records) < 7:
         raise HTTPException(
             status_code=400, 
-            detail="Insufficient data for monthly view. At least 7 records are required."
+            detail="Dados insuficientes para visualização mensal. São necessários pelo menos 7 registros."
         )
     
 def aggregate_metrics(records: list, period: str):

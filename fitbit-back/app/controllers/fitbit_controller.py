@@ -2,17 +2,20 @@ import os
 import time
 import requests
 from datetime import date
-from typing import Dict
+from typing import Dict, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import RedirectResponse
 from urllib.parse import urlencode
 from sqlalchemy.orm import Session
+from jose import jwt
 
 from app.database.connection import get_db
 from app.repositories.patient_repository import PatientRepository
 from app.core.fitbit_client import get_auth_header
 from app.core.security import get_current_user_cpf
+from app.core.settings import SETTINGS
+from app.api.dependencies import get_user_from_cookie, get_current_user, get_cpf_from_header
 from app.services.dashboard_service import get_cached_data
 
 router = APIRouter()
@@ -111,8 +114,13 @@ def fitbit_get(endpoint: str, cpf: str, db: Session):
 # OAuth Flow
 # =========================
 @router.get("/auth")
-def auth(cpf: str):
-    """Initializes Fitbit OAuth2 flow."""
+def auth(current_user: Dict = Depends(get_current_user)):
+    """
+    Returns Fitbit OAuth URL for the authenticated user.
+    Frontend will redirect to this URL.
+    """
+    cpf = current_user["sub"]
+    
     params = {
         "response_type": "code",
         "client_id": FITBIT_CLIENT_ID,
@@ -120,9 +128,8 @@ def auth(cpf: str):
         "scope": "activity heartrate sleep profile",
         "state": cpf,
     }
-    return RedirectResponse(
-        url=f"https://www.fitbit.com/oauth2/authorize?{urlencode(params)}"
-    )
+    oauth_url = f"https://www.fitbit.com/oauth2/authorize?{urlencode(params)}"
+    return {"url": oauth_url}
 
 
 @router.get("/callback")
@@ -184,16 +191,23 @@ def callback(
 # =========================
 @router.get("/status")
 def fitbit_status(
-    cpf: str = Depends(get_current_user_cpf),
+    cpf: str = Depends(get_cpf_from_header),
     db: Session = Depends(get_db)
 ):
     """Check if user has connected Fitbit account."""
+    print(f"[DEBUG] fitbit_status called for CPF: {cpf}")
     patient_repo = PatientRepository(db)
     patient = patient_repo.find_by_cpf(cpf)
     
-    if not patient or not patient.fitbit_access_token:
+    if not patient:
+        print(f"[DEBUG] Patient with CPF {cpf} not found in database")
         return {"connected": False}
     
+    if not patient.fitbit_access_token:
+        print(f"[DEBUG] Patient {cpf} found but no Fitbit token")
+        return {"connected": False}
+    
+    print(f"[DEBUG] Patient {cpf} is connected to Fitbit")
     return {
         "connected": True,
         "scopes": ["activity", "heartrate", "sleep", "profile"]
@@ -202,16 +216,19 @@ def fitbit_status(
 
 @router.post("/disconnect")
 def disconnect_fitbit(
-    cpf: str = Depends(get_current_user_cpf),
+    cpf: str = Depends(get_cpf_from_header),
     db: Session = Depends(get_db)
 ):
     """Disconnect Fitbit account by removing tokens."""
+    print(f"[DEBUG] disconnect_fitbit called for CPF: {cpf}")
     patient_repo = PatientRepository(db)
     patient = patient_repo.remove_fitbit_tokens(cpf)
     
     if not patient:
+        print(f"[DEBUG] Patient {cpf} not found")
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     
+    print(f"[DEBUG] Patient {cpf} disconnected successfully")
     return {"message": "Fitbit desconectado com sucesso"}
 
 
@@ -220,7 +237,7 @@ def disconnect_fitbit(
 # =========================
 @router.get("/profile")
 def profile(
-    cpf: str = Depends(get_current_user_cpf),
+    cpf: str = Depends(get_cpf_from_header),
     db: Session = Depends(get_db)
 ):
     return fitbit_get(f"{FITBIT_API_BASE_URL}/profile.json", cpf, db)
@@ -229,7 +246,7 @@ def profile(
 @router.get("/activity")
 def activity(
     day: str = date.today().isoformat(),
-    cpf: str = Depends(get_current_user_cpf),
+    cpf: str = Depends(get_cpf_from_header),
     db: Session = Depends(get_db)
 ):
     return fitbit_get(
@@ -240,7 +257,7 @@ def activity(
 @router.get("/heartrate")
 def heartrate(
     day: str = date.today().isoformat(),
-    cpf: str = Depends(get_current_user_cpf),
+    cpf: str = Depends(get_cpf_from_header),
     db: Session = Depends(get_db)
 ):
     return fitbit_get(
@@ -251,7 +268,7 @@ def heartrate(
 @router.get("/sleep")
 def sleep(
     day: str = date.today().isoformat(),
-    cpf: str = Depends(get_current_user_cpf),
+    cpf: str = Depends(get_cpf_from_header),
     db: Session = Depends(get_db)
 ):
     return fitbit_get(
@@ -262,7 +279,7 @@ def sleep(
 @router.get("/dashboard")
 def dashboard(
     day: str = date.today().isoformat(),
-    cpf: str = Depends(get_current_user_cpf),
+    cpf: str = Depends(get_cpf_from_header),
     db: Session = Depends(get_db)
 ):
     return {
@@ -282,7 +299,7 @@ def dashboard(
 @router.post("/sync")
 def sync_fitbit_data(
     day: str = date.today().isoformat(),
-    cpf: str = Depends(get_current_user_cpf),
+    cpf: str = Depends(get_cpf_from_header),
     db: Session = Depends(get_db)
 ):
     """Synchronize Fitbit data and persist to database.

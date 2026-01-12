@@ -57,6 +57,28 @@ describe('useDashboard - Date Range Functions', () => {
       const end = '2024-12-31'
       expect(validateCustomRange(start, end)).toBe(true)
     })
+
+    it('should reject future end dates', () => {
+      const today = new Date()
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const start = today.toISOString().split('T')[0]!
+      const end = tomorrow.toISOString().split('T')[0]!
+
+      expect(validateCustomRange(start, end)).toBe(false)
+    })
+
+    it('should accept end date as today', () => {
+      const today = new Date()
+      const lastWeek = new Date(today)
+      lastWeek.setDate(lastWeek.getDate() - 7)
+
+      const start = lastWeek.toISOString().split('T')[0]!
+      const end = today.toISOString().split('T')[0]!
+
+      expect(validateCustomRange(start, end)).toBe(true)
+    })
   })
 })
 
@@ -90,8 +112,14 @@ function validateCustomRange(startDate: string, endDate: string): boolean {
 
   const start = new Date(startDate)
   const end = new Date(endDate)
+  const today = new Date()
+  today.setHours(23, 59, 59, 999) // Set to end of today
 
   if (start > end) {
+    return false
+  }
+
+  if (end > today) {
     return false
   }
 

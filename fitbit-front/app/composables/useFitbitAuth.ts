@@ -1,17 +1,33 @@
 export const useFitbitAuth = () => {
   const config = useRuntimeConfig()
   const toast = useToast()
+  const { token } = useAuth()
 
   const API_BASE_URL = config.public.apiBase || 'http://localhost:8000'
 
   const isFitbitConnected = useState('fitbitConnected', () => false)
   const isConnecting = useState('fitbitConnecting', () => false)
-  const fitbitAuthUrl = `${API_BASE_URL}/fitbit/auth`
 
   /**
    * Initiates Fitbit OAuth flow
+   * Browser automatically sends auth_token cookie to backend
+   * Backend extracts CPF from JWT token
    */
-  const connectFitbit = () => {
+  /**
+   * Initiates Fitbit OAuth flow
+   * Gets OAuth URL from backend and redirects
+   */
+  const connectFitbit = async () => {
+    if (!token.value) {
+      toast.add({
+        title: 'Erro de autenticação',
+        description: 'Você precisa estar logado para conectar o Fitbit',
+        color: 'error',
+        icon: 'i-heroicons-x-circle'
+      })
+      return
+    }
+
     isConnecting.value = true
 
     toast.add({
@@ -21,10 +37,35 @@ export const useFitbitAuth = () => {
       icon: 'i-simple-icons-fitbit'
     })
 
-    // Redirect to backend OAuth endpoint
-    setTimeout(() => {
-      window.location.href = fitbitAuthUrl
-    }, 500)
+    try {
+      // Get OAuth URL from backend (requires JWT authentication)
+      const response = await fetch(`${API_BASE_URL}/fitbit/auth`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token.value}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to get OAuth URL: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        throw new Error('No OAuth URL received from server')
+      }
+    } catch (error) {
+      console.error('Error initiating Fitbit connection:', error)
+      toast.add({
+        title: 'Erro ao conectar',
+        description: 'Não foi possível iniciar a conexão com o Fitbit',
+        color: 'error',
+        icon: 'i-heroicons-x-circle'
+      })
+      isConnecting.value = false
+    }
   }
 
   /**
@@ -37,8 +78,6 @@ export const useFitbitAuth = () => {
 
       // Check URL query first for immediate feedback
       if (route.query.fitbit === 'connected') {
-        isFitbitConnected.value = true
-
         toast.add({
           title: 'Fitbit conectado com sucesso!',
           description: 'Seus dados Fitbit estão sendo sincronizados',
@@ -49,6 +88,21 @@ export const useFitbitAuth = () => {
         // Clean URL
         const router = useRouter()
         router.replace({ query: {} })
+
+        // Verify actual connection status with API
+        if (token.value) {
+          const response = await fetch(`${API_BASE_URL}/fitbit/status`, {
+            headers: {
+              'Authorization': `Bearer ${token.value}`,
+              'Content-Type': 'application/json'
+            }
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            isFitbitConnected.value = data.connected
+          }
+        }
         return
       }
 
@@ -90,13 +144,20 @@ export const useFitbitAuth = () => {
 
       // Check actual connection status from API
       if (token.value) {
-        const response = await $fetch<{ connected: boolean }>(`${API_BASE_URL}/fitbit/status`, {
+        const response = await fetch(`${API_BASE_URL}/fitbit/status`, {
           headers: {
-            Authorization: `Bearer ${token.value}`
+            'Authorization': `Bearer ${token.value}`,
+            'Content-Type': 'application/json'
           }
         })
 
-        isFitbitConnected.value = response.connected
+        if (response.ok) {
+          const data = await response.json()
+          isFitbitConnected.value = data.connected
+        } else {
+          console.error('Failed to check Fitbit status:', response.status, response.statusText)
+          isFitbitConnected.value = false
+        }
       }
     } catch (error) {
       console.error('Error checking Fitbit status:', error)
@@ -115,12 +176,17 @@ export const useFitbitAuth = () => {
         throw new Error('No token')
       }
 
-      await $fetch(`${API_BASE_URL}/fitbit/disconnect`, {
+      const response = await fetch(`${API_BASE_URL}/fitbit/disconnect`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token.value}`
+          'Authorization': `Bearer ${token.value}`,
+          'Content-Type': 'application/json'
         }
       })
+
+      if (!response.ok) {
+        throw new Error(`Failed to disconnect: ${response.statusText}`)
+      }
 
       isFitbitConnected.value = false
 

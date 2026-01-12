@@ -69,11 +69,23 @@ const _useDashboard = () => {
 
     const start = new Date(startDate)
     const end = new Date(endDate)
+    const today = new Date()
+    today.setHours(23, 59, 59, 999) // Set to end of today
 
     if (start > end) {
       toast.add({
         title: 'Período inválido',
         description: 'Período inválido. Verifique as datas informadas.',
+        color: 'error',
+        icon: 'i-lucide-alert-circle'
+      })
+      return false
+    }
+
+    if (end > today) {
+      toast.add({
+        title: 'Data inválida',
+        description: 'A data final não pode ser posterior à data de hoje.',
         color: 'error',
         icon: 'i-lucide-alert-circle'
       })
@@ -86,7 +98,7 @@ const _useDashboard = () => {
     if (diffDays > 365) {
       toast.add({
         title: 'Período muito longo',
-        description: 'O período não pode exceder 1 ano.',
+        description: 'O período customizado não pode exceder 365 dias.',
         color: 'error',
         icon: 'i-lucide-alert-circle'
       })

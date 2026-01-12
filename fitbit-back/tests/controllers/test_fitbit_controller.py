@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
 from app.models.patient import Patient
-from app.core.security import get_current_user_cpf
+from app.api.dependencies import get_cpf_from_header
 from app.controllers.fitbit_controller import router as fitbit_router
 
 
@@ -15,11 +15,11 @@ def create_test_app():
     """Cria uma instância isolada do app para testes"""
     test_app = FastAPI()
     
-    # Mock JWT para retornar CPF fixo
-    def override_get_current_user_cpf():
+    # Mock get_cpf_from_header para retornar CPF fixo
+    def override_get_cpf_from_header():
         return "12345678901"
     
-    test_app.dependency_overrides[get_current_user_cpf] = override_get_current_user_cpf
+    test_app.dependency_overrides[get_cpf_from_header] = override_get_cpf_from_header
     test_app.include_router(fitbit_router, prefix="/fitbit")
     
     return test_app

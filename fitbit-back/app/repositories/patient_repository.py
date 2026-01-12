@@ -52,6 +52,9 @@ class PatientRepository:
         patient.fitbit_access_token = None
         patient.fitbit_refresh_token = None
         patient.fitbit_expires_at = None
+        self.db.commit()
+        self.db.refresh(patient)
+        return patient
         
 
     def save_metrics(self, cpf: str, metrics_list: List[Dict[str, Any]]) -> List[PatientMetrics]:

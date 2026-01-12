@@ -9,6 +9,12 @@ MOCK_RECORDS = [
     {"date": "2026-01-10", "steps": 8000, "bpm": 72, "sleep_hours": 7.5},
 ]
 
+MOCK_CUSTOM_RECORDS = [
+    {"date": "2026-01-01", "steps": 5000, "bpm": 68, "sleep_hours": 8.0},
+    {"date": "2026-01-02", "steps": 6000, "bpm": 70, "sleep_hours": 7.5},
+    {"date": "2026-01-03", "steps": 7000, "bpm": 72, "sleep_hours": 7.0},
+]
+
 # --- TEST CASES ---
 
 @patch("app.services.dashboard_service.FitbitModel.find_by_cpf_and_date")
@@ -34,6 +40,23 @@ def test_get_dashboard_metrics_empty_db(mock_find):
     assert result["activities-heart"] == []
     assert result["sleep"] == []
 
+@patch("app.services.dashboard_service.FitbitModel.find_by_cpf_and_date")
+def test_custom_period_valid_range(mock_find):
+    """PB12: Tests custom period with valid date range."""
+    mock_find.return_value = MOCK_CUSTOM_RECORDS
+    
+    result = get_dashboard_metrics(
+        cpf="12345678900",
+        period="custom",
+        start_date="2026-01-01",
+        end_date="2026-01-03"
+    )
+    
+    assert len(result["activities-steps"]) == 3
+    assert result["activities-steps"][0]["value"] == "5000"
+    assert result["activities-steps"][1]["value"] == "6000"
+    assert result["activities-steps"][2]["value"] == "7000"
+
 def test_error_start_date_greater_than_end_date():
     """TB.1: Validates that initial date cannot be after final date."""
     with pytest.raises(HTTPException) as exc:
@@ -44,7 +67,7 @@ def test_error_start_date_greater_than_end_date():
             end_date="2026-01-01"
         )
     assert exc.value.status_code == 400
-    assert "Initial date cannot be greater than final date" in exc.value.detail
+    assert "Período inválido. Verifique as datas informadas." in exc.value.detail
 
 def test_error_future_date():
     """Validation: Prevents filtering dates beyond today."""
@@ -57,14 +80,14 @@ def test_error_future_date():
             end_date=future_date
         )
     assert exc.value.status_code == 400
-    assert "cannot be later than today" in exc.value.detail
+    assert "não pode ser posterior à data de hoje" in exc.value.detail
 
 def test_error_custom_period_missing_dates():
     """Scenario 6: Ensures 'custom' period fails without date parameters."""
     with pytest.raises(HTTPException) as exc:
         get_dashboard_metrics(cpf="123", period="custom")
     assert exc.value.status_code == 400
-    assert "Initial and final dates are required" in exc.value.detail
+    assert "Data inicial e final são obrigatórias" in exc.value.detail
 
 def test_error_performance_limit_exceeded():
     """TB.2: Validates the 365-day performance limit for custom queries."""
@@ -76,11 +99,11 @@ def test_error_performance_limit_exceeded():
             end_date="2022-01-01"
         )
     assert exc.value.status_code == 400
-    assert "cannot exceed 365 days" in exc.value.detail
+    assert "não pode exceder 365 dias" in exc.value.detail
 
 def test_error_invalid_period_name():
     """Validation: Rejects periods that are not daily, weekly, monthly, or custom."""
     with pytest.raises(HTTPException) as exc:
         get_dashboard_metrics(cpf="123", period="yearly")
     assert exc.value.status_code == 400
-    assert "Invalid period" in exc.value.detail
+    assert "Período inválido" in exc.value.detail

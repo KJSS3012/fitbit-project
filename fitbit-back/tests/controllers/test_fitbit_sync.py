@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from fastapi import FastAPI
 from app.models.patient import Patient
 from app.models.patient_metrics import PatientMetrics
-from app.core.security import get_current_user_cpf
+from app.api.dependencies import get_cpf_from_header
 from app.controllers.fitbit_controller import router as fitbit_router
 
 
@@ -15,10 +15,10 @@ def create_test_app():
     """Create isolated test app"""
     test_app = FastAPI()
     
-    def override_get_current_user_cpf():
+    def override_get_cpf_from_header():
         return "12345678901"
     
-    test_app.dependency_overrides[get_current_user_cpf] = override_get_current_user_cpf
+    test_app.dependency_overrides[get_cpf_from_header] = override_get_cpf_from_header
     test_app.include_router(fitbit_router, prefix="/fitbit")
     
     return test_app
