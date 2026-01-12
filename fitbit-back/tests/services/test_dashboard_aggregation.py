@@ -49,7 +49,7 @@ def test_insufficient_data_block(mock_cache):
         get_dashboard_metrics("123", period="monthly")
     
     assert exc.value.status_code == 400
-    assert "At least 7 records are required" in exc.value.detail
+    assert "São necessários pelo menos 7 registros" in exc.value.detail
 
 @patch("app.services.dashboard_service.get_cached_data")
 def test_consistency_unit_conversion(mock_cache):

@@ -134,7 +134,7 @@ def test_get_metrics_invalid_chronology(client, patient_token):
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 400
-    assert response.json()["detail"] == "Initial date cannot be greater than final date."
+    assert response.json()["detail"] == "Período inválido. Verifique as datas informadas."
 
 
 def test_get_metrics_missing_dates_for_custom(client, patient_token):
@@ -143,7 +143,7 @@ def test_get_metrics_missing_dates_for_custom(client, patient_token):
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 400
-    assert "Initial and final dates are required" in response.json()["detail"]
+    assert "Data inicial e final são obrigatórias" in response.json()["detail"]
 
 
 def test_get_metrics_future_date_error(client, patient_token):
@@ -152,7 +152,7 @@ def test_get_metrics_future_date_error(client, patient_token):
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 400
-    assert response.json()["detail"] == "The date cannot be later than today's date."
+    assert response.json()["detail"] == "A data final não pode ser posterior à data de hoje."
 
 
 def test_get_metrics_performance_limit(client, patient_token):
@@ -161,7 +161,7 @@ def test_get_metrics_performance_limit(client, patient_token):
         headers={"Authorization": f"Bearer {patient_token}"}
     )
     assert response.status_code == 400
-    assert "cannot exceed 365 days" in response.json()["detail"]
+    assert "não pode exceder 365 dias" in response.json()["detail"]
 
 
 def test_get_metrics_invalid_period_regex(client, patient_token):

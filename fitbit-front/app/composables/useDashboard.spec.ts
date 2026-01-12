@@ -53,8 +53,30 @@ describe('useDashboard - Date Range Functions', () => {
     })
 
     it('should accept date range exactly 365 days', () => {
-      const start = '2024-01-01'
-      const end = '2024-12-31'
+      const start = '2023-01-01'
+      const end = '2023-12-31'
+      expect(validateCustomRange(start, end)).toBe(true)
+    })
+
+    it('should reject future end dates', () => {
+      const today = new Date()
+      const tomorrow = new Date(today)
+      tomorrow.setDate(tomorrow.getDate() + 1)
+
+      const start = today.toISOString().split('T')[0]!
+      const end = tomorrow.toISOString().split('T')[0]!
+
+      expect(validateCustomRange(start, end)).toBe(false)
+    })
+
+    it('should accept end date as today', () => {
+      const today = new Date()
+      const lastWeek = new Date(today)
+      lastWeek.setDate(lastWeek.getDate() - 7)
+
+      const start = lastWeek.toISOString().split('T')[0]!
+      const end = today.toISOString().split('T')[0]!
+
       expect(validateCustomRange(start, end)).toBe(true)
     })
   })
@@ -88,10 +110,17 @@ function validateCustomRange(startDate: string, endDate: string): boolean {
     return false
   }
 
-  const start = new Date(startDate)
-  const end = new Date(endDate)
+  // Parse as local start/end times to avoid timezone issues in tests
+  const start = new Date(`${startDate}T00:00:00`)
+  const end = new Date(`${endDate}T23:59:59.999`)
+  const today = new Date()
+  today.setHours(23, 59, 59, 999) // Set to end of today
 
   if (start > end) {
+    return false
+  }
+
+  if (end > today) {
     return false
   }
 

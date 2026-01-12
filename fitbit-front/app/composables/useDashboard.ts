@@ -48,9 +48,17 @@ const _useDashboard = () => {
     }
 
     return {
-      start: start.toISOString().split('T')[0]!,
-      end: end.toISOString().split('T')[0]!
+      start: formatLocalDate(start),
+      end: formatLocalDate(end)
     }
+  }
+
+  // Helper to format a Date as YYYY-MM-DD in local timezone
+  const formatLocalDate = (d: Date) => {
+    const yyyy = d.getFullYear()
+    const mm = `${d.getMonth() + 1}`.padStart(2, '0')
+    const dd = `${d.getDate()}`.padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
   }
 
   /**
@@ -67,13 +75,26 @@ const _useDashboard = () => {
       return false
     }
 
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    // Parse as local dates to avoid timezone/UTC midnight issues
+    const start = new Date(`${startDate}T00:00:00`)
+    const end = new Date(`${endDate}T23:59:59.999`)
+    const today = new Date()
+    today.setHours(23, 59, 59, 999) // end of today (local)
 
     if (start > end) {
       toast.add({
         title: 'Período inválido',
         description: 'Período inválido. Verifique as datas informadas.',
+        color: 'error',
+        icon: 'i-lucide-alert-circle'
+      })
+      return false
+    }
+
+    if (end > today) {
+      toast.add({
+        title: 'Data inválida',
+        description: 'A data final não pode ser posterior à data de hoje.',
         color: 'error',
         icon: 'i-lucide-alert-circle'
       })
@@ -86,7 +107,7 @@ const _useDashboard = () => {
     if (diffDays > 365) {
       toast.add({
         title: 'Período muito longo',
-        description: 'O período não pode exceder 1 ano.',
+        description: 'O período customizado não pode exceder 365 dias.',
         color: 'error',
         icon: 'i-lucide-alert-circle'
       })
@@ -120,19 +141,22 @@ const _useDashboard = () => {
   })
 
   /**
-   * Changes filter period with debounce optimization
+   * Changes filter period
    */
-  const changePeriod = useDebounceFn((period: FilterPeriod) => {
+  const changePeriod = async (period: FilterPeriod) => {
     if (period === 'custom' && !customDateRange.value) {
       return
     }
     selectedPeriod.value = period
     isLoadingData.value = true
 
+    // Use nextTick to ensure state is updated before triggering loading
+    await nextTick()
+
     setTimeout(() => {
       isLoadingData.value = false
     }, 300)
-  }, 150)
+  }
 
   return {
     isNotificationsSlideoverOpen,

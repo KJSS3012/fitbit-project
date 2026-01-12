@@ -52,7 +52,7 @@ export interface Notification {
   date: string
 }
 
-export type Period = 'daily' | 'weekly' | 'monthly'
+export type Period = 'day' | 'week' | 'month' | 'custom'
 
 export interface Range {
   start: Date

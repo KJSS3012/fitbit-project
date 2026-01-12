@@ -57,8 +57,7 @@ export const useAuth = () => {
   const login = async (
     userType: 'paciente' | 'medico',
     identifier: string,
-    password: string,
-    rememberMe = false
+    password: string
   ) => {
     try {
       const endpoint =

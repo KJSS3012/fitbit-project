@@ -60,11 +60,14 @@ describe('useFitbitAuth', () => {
 
   it('deve detectar conexão via query param', async () => {
     mockRoute.query = { fitbit: 'connected' }
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ connected: true })
+    })
     const { checkFitbitStatus } = useFitbitAuth()
 
     await checkFitbitStatus()
 
-    expect(mockFitbitConnected.value).toBe(true)
     expect(mockRouter.replace).toHaveBeenCalledWith({ query: {} })
     expect(mockToast.add).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -72,6 +75,7 @@ describe('useFitbitAuth', () => {
         color: 'success'
       })
     )
+    expect(mockFitbitConnected.value).toBe(true)
   })
 
   it('deve detectar negação do usuário via query param', async () => {
@@ -109,22 +113,27 @@ describe('useFitbitAuth', () => {
   })
 
   it('deve buscar status da API quando há token', async () => {
-    ; (global.$fetch as any).mockResolvedValue({ connected: true })
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ connected: true })
+    })
     const { checkFitbitStatus } = useFitbitAuth()
 
     await checkFitbitStatus()
 
-    expect(global.$fetch).toHaveBeenCalledWith(
+    expect(global.fetch).toHaveBeenCalledWith(
       'http://localhost:8000/fitbit/status',
       expect.objectContaining({
-        headers: { Authorization: 'Bearer test-token-123' }
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token-123'
+        })
       })
     )
     expect(mockFitbitConnected.value).toBe(true)
   })
 
   it('deve tratar erro ao verificar status', async () => {
-    ; (global.$fetch as any).mockRejectedValue(new Error('Network error'))
+    global.fetch = vi.fn().mockRejectedValue(new Error('Network error'))
     const { checkFitbitStatus } = useFitbitAuth()
 
     await checkFitbitStatus()
@@ -133,21 +142,29 @@ describe('useFitbitAuth', () => {
   })
 
   it('deve desconectar Fitbit com sucesso', async () => {
-    ; (global.$fetch as any).mockResolvedValue({})
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ message: 'Fitbit desconectado com sucesso' })
+    })
     const { disconnectFitbit } = useFitbitAuth()
     mockFitbitConnected.value = true
 
     await disconnectFitbit()
 
-    expect(global.$fetch).toHaveBeenCalledWith(
+    expect(global.fetch).toHaveBeenCalledWith(
       'http://localhost:8000/fitbit/disconnect',
-      expect.objectContaining({ method: 'POST' })
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token-123'
+        })
+      })
     )
     expect(mockFitbitConnected.value).toBe(false)
   })
 
   it('deve mostrar erro ao falhar desconexão', async () => {
-    ; (global.$fetch as any).mockRejectedValue(new Error('API error'))
+    global.fetch = vi.fn().mockRejectedValue(new Error('API error'))
     const { disconnectFitbit } = useFitbitAuth()
 
     await disconnectFitbit()

@@ -3,6 +3,7 @@ import { sub, startOfDay, endOfDay } from 'date-fns'
 import type { Period, Range } from '~/types/dashboard'
 import type { TimeFilter } from '~/composables/useFitbitData'
 import { useDashboard } from '~/composables/useDashboard'
+import FilterBar from '~/components/dashboard/FilterBar.vue'
 
 definePageMeta({
   layout: 'dashboard',
@@ -49,12 +50,70 @@ const handleExport = () => {
   router.push('/dashboard/export')
 }
 
-const stepsData = computed(() => getStepsData(range.value.start, range.value.end, period.value))
-const heartRateData = computed(() => getHeartRateData(range.value.start, range.value.end, period.value))
-const sleepData = computed(() => getSleepData(range.value.start, range.value.end, period.value))
-const caloriesData = computed(() => getCaloriesData(range.value.start, range.value.end, period.value))
+const stepsData = ref<Array<{ date: string, value: number }>>([])
+const heartRateData = ref<Array<{ date: string, value: number }>>([])
+const sleepData = ref<Array<{ date: string, value: number }>>([])
+const caloriesData = ref<Array<{ date: string, value: number }>>([])
+const stats = ref<{
+  steps: { total: number; average: number; max: number }
+  heartRate: { average: number; min: number; max: number }
+  sleep: { totalHours: number; averageHours: string }
+  calories: { total: number; average: number }
+} | null>(null)
 
-const stats = computed(() => getStats(range.value.start, range.value.end))
+const notes = ref<Array<{
+  id: string
+  doctor_crm: string
+  text: string
+  metric_type?: string
+  created_at: string
+}>>([])
+
+const fetchData = async () => {
+  isLoadingData.value = true
+  try {
+    stepsData.value = await getStepsData(range.value.start, range.value.end, period.value)
+    heartRateData.value = await getHeartRateData(range.value.start, range.value.end, period.value)
+    sleepData.value = await getSleepData(range.value.start, range.value.end, period.value)
+    caloriesData.value = await getCaloriesData(range.value.start, range.value.end, period.value)
+    stats.value = await getStats(range.value.start, range.value.end)
+    notes.value = await $fetch(`/notes/notes/${patientId.value}`)
+  } catch (error) {
+    console.error('Error fetching data:', error)
+  } finally {
+    isLoadingData.value = false
+  }
+}
+
+onMounted(async () => {
+  await fetchData()
+})
+
+watch([range, period], async () => {
+  await fetchData()
+})
+
+const getMetricColor = (type: string) => {
+  switch (type) {
+    case 'hr': return 'error'
+    case 'steps': return 'primary'
+    case 'sleep': return 'info'
+    default: return 'neutral'
+  }
+}
+
+const getMetricLabel = (type: string) => {
+  switch (type) {
+    case 'hr': return 'FC'
+    case 'steps': return 'Passos'
+    case 'sleep': return 'Sono'
+    default: return type
+  }
+}
+
+const formatDate = (dateStr: string) => {
+  return format(new Date(dateStr), 'dd/MM HH:mm')
+}
 
 const hasData = computed(() =>
   isSimulationMode.value && (
@@ -117,7 +176,7 @@ if (!isSimulationMode.value) {
               Modo Visualização
             </UBadge>
 
-            <DashboardFilterBar />
+            <FilterBar />
           </div>
         </template>
       </UDashboardToolbar>
@@ -171,15 +230,40 @@ if (!isSimulationMode.value) {
         </UAlert>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <DashboardStatsCard title="Passos Totais" :value="stats.steps.total.toLocaleString('pt-BR')" subtitle="passos"
-            icon="i-lucide-footprints" color="primary" />
-          <DashboardStatsCard title="Média de Passos" :value="stats.steps.average.toLocaleString('pt-BR')"
+          <DashboardStatsCard title="Passos Totais" :value="stats!.steps.total.toLocaleString('pt-BR')"
+            subtitle="passos" icon="i-lucide-footprints" color="primary" />
+          <DashboardStatsCard title="Média de Passos" :value="stats!.steps.average.toLocaleString('pt-BR')"
             subtitle="por dia" icon="i-lucide-trending-up" color="success" />
-          <DashboardStatsCard title="FC Média" :value="stats.heartRate.average" subtitle="bpm"
+          <DashboardStatsCard title="FC Média" :value="stats!.heartRate.average" subtitle="bpm"
             icon="i-lucide-heart-pulse" color="error" />
-          <DashboardStatsCard title="Sono Médio" :value="stats.sleep.averageHours" subtitle="horas" icon="i-lucide-moon"
-            color="info" />
+          <DashboardStatsCard title="Sono Médio" :value="stats!.sleep.averageHours" subtitle="horas"
+            icon="i-lucide-moon" color="info" />
         </div>
+
+        <!-- Clinical Notes Timeline -->
+        <UCard v-if="notes.length > 0" class="mt-6">
+          <template #header>
+            <h3 class="text-lg font-semibold">Anotações Clínicas</h3>
+          </template>
+
+          <div class="space-y-4">
+            <div v-for="note in notes" :key="note.id" class="border-l-4 border-primary pl-4 py-2">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-lucide-user" class="size-4 text-muted" />
+                  <span class="text-sm font-medium">Dr. {{ note.doctor_crm }}</span>
+                  <UBadge v-if="note.metric_type" :color="getMetricColor(note.metric_type)" variant="subtle" size="xs">
+                    {{ getMetricLabel(note.metric_type) }}
+                  </UBadge>
+                </div>
+                <span class="text-xs text-muted">
+                  {{ formatDate(note.created_at) }}
+                </span>
+              </div>
+              <p class="text-sm">{{ note.text }}</p>
+            </div>
+          </div>
+        </UCard>
 
         <UCard>
           <template #header>

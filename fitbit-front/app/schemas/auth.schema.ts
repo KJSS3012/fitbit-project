@@ -26,13 +26,7 @@ export const registerSchema = z.object({
 
   confirmPassword: z
     .string({ message: 'Por favor, confirme sua senha' })
-    .min(1, 'Por favor, confirme sua senha'),
-
-  acceptTerms: z
-    .boolean()
-    .refine(val => val === true, {
-      message: 'Você deve aceitar os termos de uso'
-    })
+    .min(1, 'Por favor, confirme sua senha')
 }).superRefine((data, ctx) => {
   if (data.userType === 'medico') {
     if (!data.crm || data.crm.trim() === '') {
@@ -72,8 +66,7 @@ export const loginSchema = z.object({
   crm: z.string().optional(),
   password: z
     .string({ message: 'Senha é obrigatória' })
-    .min(1, 'Senha é obrigatória'),
-  rememberMe: z.boolean().optional()
+    .min(1, 'Senha é obrigatória')
 }).superRefine((data, ctx) => {
   if (data.userType === 'paciente') {
     if (!data.cpf) {

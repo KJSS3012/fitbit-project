@@ -16,7 +16,6 @@ const { handleSubmit, errors, isSubmitting } = useForm({
   validationSchema: toTypedSchema(registerSchema),
   initialValues: {
     userType: 'paciente',
-    acceptTerms: false,
     crm: ''
   }
 })
@@ -27,7 +26,6 @@ const { value: cpf } = useField<string>('cpf')
 const { value: crm } = useField<string>('crm')
 const { value: password } = useField<string>('password')
 const { value: confirmPassword } = useField<string>('confirmPassword')
-const { value: acceptTerms } = useField<boolean>('acceptTerms')
 
 const formatCPF = (event: Event) => {
   const input = event.target as HTMLInputElement
@@ -113,13 +111,6 @@ const onSubmit = async () => {
       <UFormField label="Confirmar Senha" required :error="errors.confirmPassword">
         <UInput v-model="confirmPassword" type="password" size="lg" class="w-full" />
       </UFormField>
-
-      <div class="space-y-1">
-        <UCheckbox v-model="acceptTerms" label="Aceito os termos de uso" />
-        <p v-if="errors.acceptTerms" class="text-sm text-red-500">
-          {{ errors.acceptTerms }}
-        </p>
-      </div>
 
       <UButton type="submit" block size="lg" :loading="isSubmitting" :disabled="isSubmitting">
         Criar Conta
