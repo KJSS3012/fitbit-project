@@ -236,12 +236,66 @@ export const useAuthorization = () => {
     }
   }
 
+  /**
+   * Set data type for doctor's authorization (Fitbit or Simulation).
+   */
+  const setDoctorDataType = async (doctorCrm: string, dataType: string) => {
+    if (!token.value || !user.value) {
+      throw new Error('Usuário não autenticado')
+    }
+
+    isLoading.value = true
+
+    try {
+      const response = await $fetch<any>(
+        `${API_BASE_URL}/auth/doctors/${doctorCrm}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token.value}`
+          },
+          body: {
+            data_type: dataType
+          }
+        }
+      )
+
+      // Update local state
+      const doctor = authorizedDoctors.value.find(d => d.crm === doctorCrm)
+      if (doctor) {
+        doctor.data_type = response.data_type
+      }
+
+      toast.add({
+        title: 'Tipo de dados atualizado',
+        description: `Tipo de dados alterado para ${dataType === 'fitbit' ? 'Fitbit' : 'Simulação'}`,
+        color: 'success',
+        icon: 'i-heroicons-check-circle'
+      })
+
+      return response
+    } catch (error: any) {
+      console.error('Error setting data type:', error)
+
+      toast.add({
+        title: 'Erro ao alterar tipo de dados',
+        description: error?.data?.detail || 'Não foi possível alterar o tipo de dados',
+        color: 'error',
+        icon: 'i-heroicons-x-circle'
+      })
+      throw error
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     authorizedDoctors,
     isLoading,
     fetchAuthorizedDoctors,
     toggleDoctorAuthorization,
     addDoctorAuthorization,
-    revokeAllAuthorizations
+    revokeAllAuthorizations,
+    setDoctorDataType
   }
 }

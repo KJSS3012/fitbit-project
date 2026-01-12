@@ -1,26 +1,34 @@
 <script setup lang="ts">
-import { useFitbitAuth } from '~/composables/useFitbitAuth'
 import { useAuthorization } from '~/composables/useAuthorization'
-import FitbitConnect from '~/components/shared/FitbitConnect.vue'
+import { useAuth } from '~/composables/useAuth'
 
 const toast = useToast()
+const { user, token } = useAuth()
 
-// Fitbit connection + Authorization (doctors)
+// Authorization (doctors)
 const {
   authorizedDoctors,
   fetchAuthorizedDoctors,
-  toggleDoctorAuthorization,
   addDoctorAuthorization,
+  toggleDoctorAuthorization,
   revokeAllAuthorizations,
+  setDoctorDataType,
   isLoading: authLoading
 } = useAuthorization()
-
-const { checkFitbitStatus } = useFitbitAuth()
 
 const newDoctorCrm = ref('')
 const isAddingDoctor = ref(false)
 
 const handleAddDoctor = async () => {
+  if (!token.value || !user.value) {
+    toast.add({
+      title: 'Erro de autenticação',
+      description: 'Você precisa estar logado para adicionar médicos',
+      color: 'error',
+      icon: 'i-heroicons-x-circle'
+    })
+    return
+  }
   if (!newDoctorCrm.value.trim()) return
   isAddingDoctor.value = true
   try {
@@ -36,6 +44,15 @@ const handleAddDoctor = async () => {
 }
 
 const handleToggleDoctor = async (doctorCrm: string, doctorName: string) => {
+  if (!token.value || !user.value) {
+    toast.add({
+      title: 'Erro de autenticação',
+      description: 'Você precisa estar logado para alterar autorizações',
+      color: 'error',
+      icon: 'i-heroicons-x-circle'
+    })
+    return
+  }
   try {
     await toggleDoctorAuthorization(doctorCrm, doctorName)
     // Refresh the list after toggling
@@ -45,7 +62,35 @@ const handleToggleDoctor = async (doctorCrm: string, doctorName: string) => {
   }
 }
 
+const handleSetDataType = async (crm: string, type: string) => {
+  if (!token.value || !user.value) {
+    toast.add({
+      title: 'Erro de autenticação',
+      description: 'Você precisa estar logado para alterar tipo de dados',
+      color: 'error',
+      icon: 'i-heroicons-x-circle'
+    })
+    return
+  }
+  try {
+    await setDoctorDataType(crm, type)
+    // Refresh the list after updating
+    await fetchAuthorizedDoctors()
+  } catch (err) {
+    // toast handled in composable
+  }
+}
+
 const handleRevokeAll = async () => {
+  if (!token.value || !user.value) {
+    toast.add({
+      title: 'Erro de autenticação',
+      description: 'Você precisa estar logado para revogar autorizações',
+      color: 'error',
+      icon: 'i-heroicons-x-circle'
+    })
+    return
+  }
   try {
     await revokeAllAuthorizations()
     // Refresh the list after revoking all
@@ -57,9 +102,12 @@ const handleRevokeAll = async () => {
 
 // Load authorized doctors on mount
 onMounted(async () => {
+  if (!token.value || !user.value) {
+    console.error('User not authenticated, skipping fetch')
+    return
+  }
   try {
     await fetchAuthorizedDoctors()
-    await checkFitbitStatus()
   } catch (err) {
     console.error('Failed to load authorized doctors:', err)
   }
@@ -69,10 +117,6 @@ onMounted(async () => {
 <template>
   <UPageCard title="Médicos Autorizados" description="Gerencie médicos autorizados a acessar seus dados."
     variant="subtle">
-    <!-- Fitbit Connection -->
-    <div class="mb-6">
-      <FitbitConnect />
-    </div>
     <!-- Add Doctor Section -->
     <div class="p-4 bg-elevated/50 rounded-lg border border-border mb-6">
       <h3 class="font-medium mb-3">Adicionar Médico</h3>
@@ -118,11 +162,27 @@ onMounted(async () => {
               </div>
             </div>
             <div class="flex items-center gap-3">
-              <UBadge :color="doctor.authorized ? 'success' : 'error'" variant="subtle">
-                {{ doctor.authorized ? 'Autorizado' : 'Revogado' }}
-              </UBadge>
-              <USwitch :model-value="doctor.authorized"
-                @update:model-value="handleToggleDoctor(doctor.crm, doctor.doctor_name)" :disabled="authLoading" />
+              <div class="flex flex-col gap-2">
+                <div class="flex items-center gap-2">
+                  <UBadge :color="doctor.authorized ? 'success' : 'error'" variant="subtle">
+                    {{ doctor.authorized ? 'Autorizado' : 'Revogado' }}
+                  </UBadge>
+                  <USwitch :model-value="doctor.authorized"
+                    @update:model-value="handleToggleDoctor(doctor.crm, doctor.doctor_name)" :disabled="authLoading" />
+                </div>
+                <div v-if="doctor.authorized" class="flex items-center gap-2">
+                  <span class="text-sm">Tipo de dados:</span>
+                  <URadioGroup 
+                    :model-value="doctor.data_type" 
+                    @update:model-value="(value) => handleSetDataType(doctor.crm, value)"
+                    :options="[
+                      { label: 'Fitbit', value: 'fitbit' },
+                      { label: 'Simulação', value: 'simulation' }
+                    ]" 
+                    :disabled="authLoading" 
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </UCard>
