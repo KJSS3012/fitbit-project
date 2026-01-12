@@ -23,10 +23,10 @@ describe('Doctor Patient Metrics - Period Filters (PB13)', () => {
       const today = new Date()
       const tomorrow = new Date(today)
       tomorrow.setDate(tomorrow.getDate() + 1)
-      
+
       const start = today.toISOString().split('T')[0]!
       const end = tomorrow.toISOString().split('T')[0]!
-      
+
       expect(validateCustomRange(start, end)).toBe(false)
     })
 
@@ -46,10 +46,10 @@ describe('Doctor Patient Metrics - Period Filters (PB13)', () => {
       const today = new Date()
       const lastWeek = new Date(today)
       lastWeek.setDate(lastWeek.getDate() - 7)
-      
+
       const start = lastWeek.toISOString().split('T')[0]!
       const end = today.toISOString().split('T')[0]!
-      
+
       expect(validateCustomRange(start, end)).toBe(true)
     })
   })
@@ -58,10 +58,10 @@ describe('Doctor Patient Metrics - Period Filters (PB13)', () => {
     it('should calculate daily period as today only', () => {
       const today = new Date()
       const range = calculateDateRange('day')
-      
+
       const startDate = new Date(range.start).toDateString()
       const endDate = new Date(range.end).toDateString()
-      
+
       expect(startDate).toBe(today.toDateString())
       expect(endDate).toBe(today.toDateString())
     })
@@ -70,7 +70,7 @@ describe('Doctor Patient Metrics - Period Filters (PB13)', () => {
       const range = calculateDateRange('week')
       const start = new Date(range.start)
       const end = new Date(range.end)
-      
+
       const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
       expect(diffDays).toBe(7)
     })
@@ -79,7 +79,7 @@ describe('Doctor Patient Metrics - Period Filters (PB13)', () => {
       const range = calculateDateRange('month')
       const start = new Date(range.start)
       const end = new Date(range.end)
-      
+
       const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
       expect(diffDays).toBe(30)
     })
