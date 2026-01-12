@@ -86,7 +86,7 @@ const isFormValid = computed(() => {
   <div class="flex items-center gap-3 flex-wrap">
     <UTabs :model-value="activeTabValue" :items="periodTabs" @update:modelValue="onPeriodTabChange" />
 
-    <UButton icon="i-lucide-calendar" size="sm" variant="outline" :color="customDateRange ? 'primary' : 'gray'"
+    <UButton icon="i-lucide-calendar" size="sm" variant="outline" :color="customDateRange ? 'primary' : 'secondary'"
       @click="openFilterDialog">
       {{ customDateRange ? 'Personalizado ✓' : 'Personalizado' }}
     </UButton>
