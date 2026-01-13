@@ -1,15 +1,6 @@
 <template>
-  <UModal v-model="isModalOpen">
-    <!-- Floating Action Button for Notes -->
-    <UButton 
-      icon="i-lucide-plus" 
-      color="primary" 
-      size="lg" 
-      class="fixed bottom-6 right-6 z-50 shadow-lg"
-      @click="openModal"
-    >
-      Adicionar Nota
-    </UButton>
+  <UModal>
+    <!-- Floating Action Button for Notes - Only show if not controlled externally -->
 
     <template #content>
       <div class="p-6">
@@ -22,29 +13,15 @@
 
         <form @submit.prevent="handleSubmit" class="space-y-4">
           <UFormField label="Tipo de Métrica (opcional)">
-            <USelect 
-              v-model="form.metricType" 
-              :items="metricOptions" 
-              placeholder="Selecione o tipo"
-              :disabled="isSubmitting"
-            />
+            <USelect v-model="form.metricType" :items="metricOptions" placeholder="Selecione o tipo"
+              :disabled="isSubmitting" />
           </UFormField>
 
           <UFormField label="Período (opcional)">
             <div class="grid grid-cols-2 gap-2">
-              <UInput 
-                v-model="form.startDate" 
-                type="date" 
-                placeholder="Data inicial"
-                :disabled="isSubmitting"
-              />
-              <UInput 
-                v-model="form.endDate" 
-                type="date" 
-                placeholder="Data final"
-                :disabled="isSubmitting"
-                :min="form.startDate"
-              />
+              <UInput v-model="form.startDate" type="date" placeholder="Data inicial" :disabled="isSubmitting" />
+              <UInput v-model="form.endDate" type="date" placeholder="Data final" :disabled="isSubmitting"
+                :min="form.startDate" />
             </div>
             <p v-if="dateError" class="text-xs text-red-500 mt-1">
               {{ dateError }}
@@ -52,37 +29,23 @@
           </UFormField>
 
           <UFormField label="Anotação" required>
-            <UTextarea 
-              v-model="form.text" 
-              placeholder="Digite sua anotação clínica..." 
-              :rows="6"
-              :disabled="isSubmitting"
-              :maxlength="2000"
-            />
-            <div class="flex justify-between items-center mt-1">
+            <UTextarea v-model="form.text" placeholder="Digite sua anotação clínica..." :rows="6"
+              :disabled="isSubmitting" :maxlength="244" class="w-full"/>
+            <div class="mt-1 w-full">
               <p v-if="textError" class="text-xs text-red-500">
                 {{ textError }}
               </p>
               <p class="text-xs text-gray-500 ml-auto">
-                {{ form.text.length }}/2000
+                {{ form.text.length }}/244
               </p>
             </div>
           </UFormField>
 
           <div class="flex gap-3 justify-end">
-            <UButton 
-              variant="outline" 
-              @click="closeModal"
-              :disabled="isSubmitting"
-            >
+            <UButton variant="outline" @click="closeModal" :disabled="isSubmitting">
               Cancelar
             </UButton>
-            <UButton 
-              type="submit" 
-              color="primary" 
-              :loading="isSubmitting"
-              :disabled="!isFormValid"
-            >
+            <UButton type="submit" color="primary" :loading="isSubmitting" :disabled="!isFormValid">
               Salvar Anotação
             </UButton>
           </div>
@@ -97,16 +60,19 @@ import type { CreateNoteData } from '~/composables/useNotes'
 
 const props = defineProps<{
   patientCpf: string
+  modelValue?: boolean
 }>()
 
 const emit = defineEmits<{
   'note-created': []
+  'update:modelValue': [value: boolean]
+  'close': [boolean]
 }>()
 
 const { createNote } = useNotes()
 const toast = useToast()
 
-const isModalOpen = ref(false)
+
 const isSubmitting = ref(false)
 const textError = ref('')
 const dateError = ref('')
@@ -127,19 +93,19 @@ const form = reactive({
 })
 
 const isFormValid = computed(() => {
-  return form.text.trim().length > 0 && 
-         form.text.length <= 2000 && 
-         !dateError.value
+  return form.text.trim().length > 0 &&
+    form.text.length <= 244 &&
+    !dateError.value
 })
 
 // Validate dates
 watch([() => form.startDate, () => form.endDate], () => {
   dateError.value = ''
-  
+
   if (form.startDate && form.endDate) {
     const start = new Date(form.startDate)
     const end = new Date(form.endDate)
-    
+
     if (end < start) {
       dateError.value = 'A data final deve ser posterior à data inicial'
     }
@@ -149,26 +115,23 @@ watch([() => form.startDate, () => form.endDate], () => {
 // Validate text
 watch(() => form.text, () => {
   textError.value = ''
-  
-  if (form.text.length > 2000) {
-    textError.value = 'A anotação não pode exceder 2000 caracteres'
+
+  if (form.text.length > 244) {
+    textError.value = 'A anotação não pode exceder 244 caracteres'
   }
 })
 
-const openModal = () => {
-  isModalOpen.value = true
-}
 
 const closeModal = () => {
   if (isSubmitting.value) return
-  
+
   // Confirm if there's unsaved content
   if (form.text.trim().length > 0) {
     const confirmed = confirm('Tem certeza que deseja cancelar? As alterações não salvas serão perdidas.')
     if (!confirmed) return
   }
-  
-  isModalOpen.value = false
+
+  emit('close')
   resetForm()
 }
 
@@ -193,8 +156,8 @@ const handleSubmit = async () => {
     return
   }
 
-  if (form.text.length > 2000) {
-    textError.value = 'A anotação não pode exceder 2000 caracteres'
+  if (form.text.length > 244) {
+    textError.value = 'A anotação não pode exceder 244 caracteres'
     return
   }
 
@@ -236,15 +199,15 @@ const handleSubmit = async () => {
     })
 
     emit('note-created')
-    isModalOpen.value = false
+    emit('close', { sendedData: true })
     resetForm()
   } catch (error: any) {
     console.error('Error creating note:', error)
-    
-    const errorMessage = error?.data?.detail || 
-                        error?.message || 
-                        'Não foi possível salvar a anotação. Tente novamente.'
-    
+
+    const errorMessage = error?.data?.detail ||
+      error?.message ||
+      'Não foi possível salvar a anotação. Tente novamente.'
+
     toast.add({
       title: 'Erro ao Salvar',
       description: errorMessage,

@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { ClinicalNote } from '~/composables/useNotes'
+import NoteModal from '~/components/shared/NoteModal.vue'
+
 
 interface Props {
   patientCpf: string
+  reloadTrigger?: number
 }
 
 const props = defineProps<Props>()
@@ -11,9 +14,21 @@ const props = defineProps<Props>()
 const { fetchNotes, deleteNote } = useNotes()
 const toast = useToast()
 
+
 const notes = ref<ClinicalNote[]>([])
 const isLoading = ref(false)
 const isDrawerOpen = ref(false)
+
+// Reload notes when reloadTrigger changes
+watch(() => props.reloadTrigger, async (newVal, oldVal) => {
+  if (newVal !== oldVal && isDrawerOpen.value) {
+    await loadNotes()
+  }
+})
+
+
+const overlay = useOverlay()
+const modal = overlay.create(NoteModal);
 
 
 
@@ -75,11 +90,21 @@ function formatDate(dateString: string) {
 
 <template>
   <UDrawer v-model="isDrawerOpen" title="Notas Médicas" description="Visualize todas as anotações médicas do paciente"
-    direction="right" :overlay="false">
-    <UButton label="Visualizar Notas" color="neutral" variant="subtle" trailing-icon="i-lucide-chevron-left" @click="loadNotes()"/>
-
+    direction="right" :overlay="false" :handle="false">
+    <UButton icon="i-lucide-eye" class="fixed bottom-6 right-6 z-50 shadow-lg" color="primary" size="lg"
+      @click="loadNotes()">
+      Visualizar Notas
+    </UButton>
     <template #body>
       <div class="space-y-4">
+        <!-- Add Note Button -->
+        <div class="flex justify-end">
+          <UButton
+            @click="modal.open({ patientCpf: props.patientCpf }).then((data) => { data.sendedData ? loadNotes() : null })"
+            icon="i-lucide-plus" color="primary">
+            Adicionar Nota
+          </UButton>
+        </div>
         <!-- Loading Skeleton -->
         <template v-if="isLoading">
           <UCard v-for="i in 3" :key="i" variant="outline">
