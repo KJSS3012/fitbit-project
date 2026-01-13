@@ -23,19 +23,25 @@ class TestCreatePatient:
             password="Senha@123456"  # Valid password
         )
         
-        # Mock do repository
+        # Mock do repositório de Pacientes
         mock_db = Mock()
-        mock_repo = Mock()
-        mock_repo.find_by_cpf.return_value = None  # CPF não existe
-        mock_repo.create.return_value = Patient(
+        mock_patient_repo = Mock()
+        mock_patient_repo.find_by_cpf.return_value = None  # CPF não existe como paciente
+        mock_patient_repo.create.return_value = Patient(
             cpf="52998224725",
             name="JOÃO SILVA",
             password="hashed_password"
         )
+
+        # Mock do repositório de Médicos (necessário para a nova validação cruzada)
+        mock_doctor_repo = Mock()
+        mock_doctor_repo.find_by_cpf.return_value = None  # CPF não existe como médico
         
         # Act
         with pytest.MonkeyPatch.context() as m:
-            m.setattr("app.services.auth_service.PatientRepository", lambda db: mock_repo)
+            m.setattr("app.services.auth_service.PatientRepository", lambda db: mock_patient_repo)
+            m.setattr("app.services.auth_service.DoctorRepository", lambda db: mock_doctor_repo)
+            
             response = create_patient(patient_data, mock_db)
         
         # Assert
@@ -45,9 +51,10 @@ class TestCreatePatient:
         assert data["cpf"] == "52998224725"
         assert data["name"] == "JOÃO SILVA"
         
-        # Verificar que métodos foram chamados
-        mock_repo.find_by_cpf.assert_called_once_with("52998224725")
-        mock_repo.create.assert_called_once()
+        # Verificar que ambos os repositórios foram consultados
+        mock_patient_repo.find_by_cpf.assert_called_once_with("52998224725")
+        mock_doctor_repo.find_by_cpf.assert_called_once_with("52998224725")
+        mock_patient_repo.create.assert_called_once()
     
     def test_create_patient_duplicate_cpf(self):
         """Deve retornar 409 se CPF já existe"""
