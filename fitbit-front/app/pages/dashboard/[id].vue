@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { sub, startOfDay, endOfDay } from 'date-fns'
+import { sub, startOfDay, endOfDay, format } from 'date-fns'
 import type { Period, Range } from '~/types/dashboard'
 import type { TimeFilter } from '~/composables/useFitbitData'
 import { useDashboard } from '~/composables/useDashboard'

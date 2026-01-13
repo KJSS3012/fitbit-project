@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { sub, startOfDay, endOfDay, format } from 'date-fns'
 import type { Period } from '~/types/dashboard'
-import NoteModal from '~/components/shared/NoteModal.vue'
+import MedicalNoteList from '~/components/shared/MedicalNoteList.vue'
 
 definePageMeta({
   layout: 'dashboard',
@@ -25,6 +25,7 @@ const showCustomDialog = ref(false)
 const customStartDate = ref('')
 const customEndDate = ref('')
 const toast = useToast()
+const isNoteModalOpen = ref(false)
 
 const currentDateRange = computed(() => {
   const now = new Date()
@@ -266,6 +267,10 @@ const stats = computed(() => {
 const goBack = () => {
   router.push('/patients')
 }
+
+const openNoteModal = () => {
+  isNoteModalOpen.value = true
+}
 </script>
 
 <template>
@@ -391,6 +396,7 @@ const goBack = () => {
     </template>
   </UDashboardPanel>
 
+  <MedicalNoteList :patient-cpf="patientCpf" />
+
   <!-- Note Modal -->
-  <NoteModal :patient-cpf="patientCpf" />
 </template>

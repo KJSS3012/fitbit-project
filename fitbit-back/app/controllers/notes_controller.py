@@ -28,13 +28,13 @@ class NoteResponse(BaseModel):
     end_date: Optional[date]
     created_at: str
 
-@router.post("/notes", response_model=dict)
+@router.post("", response_model=dict)
 async def create_note(
     request: CreateNoteRequest,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.get("type") != "medico":
+    if current_user.get("type") != "doctor":
         raise HTTPException(status_code=403, detail="Apenas médicos podem criar anotações")
 
     if not request.text.strip():
@@ -44,7 +44,7 @@ async def create_note(
     note = ClinicalNote(
         id=str(uuid.uuid4()),
         patient_cpf=request.patient_cpf,
-        doctor_crm=current_user["crm"],
+        doctor_crm=current_user["sub"],
         text=request.text.strip(),
         metric_type=request.metric_type,
         start_date=request.start_date,
@@ -53,14 +53,14 @@ async def create_note(
     await repo.create_note(note)
     return {"success": True, "message": "Anotação registrada com sucesso"}
 
-@router.get("/notes/{cpf}", response_model=List[NoteResponse])
+@router.get("/{cpf}", response_model=List[NoteResponse])
 async def get_notes(
     cpf: str,
     current_user: dict = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     # Allow patient to see their own notes, or doctor with access
-    if current_user["cpf"] != cpf and current_user.get("type") != "medico":
+    if current_user["sub"] != cpf and current_user.get("type") != "doctor":
         raise HTTPException(status_code=403, detail="Acesso negado")
 
     repo = ClinicalNotesRepository(db)
@@ -77,3 +77,18 @@ async def get_notes(
             created_at=note.created_at.isoformat()
         ) for note in notes
     ]
+
+@router.delete("/{note_id}")
+async def delete_note(
+    note_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.get("type") != "doctor":
+        raise HTTPException(status_code=403, detail="Apenas médicos podem excluir anotações")
+    
+    repo = ClinicalNotesRepository(db)
+    success = await repo.delete_note(note_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Anotação não encontrada")
+    return {"success": True, "message": "Anotação excluída com sucesso"}
