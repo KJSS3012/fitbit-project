@@ -2,6 +2,7 @@
 import { sub, startOfDay, endOfDay, format } from 'date-fns'
 import type { Period } from '~/types/dashboard'
 import NoteModal from '~/components/shared/NoteModal.vue'
+import MedicalNoteList from '~/components/shared/MedicalNoteList.vue'
 
 definePageMeta({
   layout: 'dashboard',
@@ -390,6 +391,8 @@ const goBack = () => {
       </div>
     </template>
   </UDashboardPanel>
+
+  <MedicalNoteList :patient-cpf="patientCpf" />
 
   <!-- Note Modal -->
   <NoteModal :patient-cpf="patientCpf" />
