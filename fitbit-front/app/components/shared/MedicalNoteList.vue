@@ -7,6 +7,7 @@ import NoteModal from '~/components/shared/NoteModal.vue'
 interface Props {
   patientCpf: string
   reloadTrigger?: number
+  readOnly?: boolean
 }
 
 const props = defineProps<Props>()
@@ -97,8 +98,8 @@ function formatDate(dateString: string) {
     </UButton>
     <template #body>
       <div class="space-y-4">
-        <!-- Add Note Button -->
-        <div class="flex justify-end">
+        <!-- Add Note Button - Only show if not read-only -->
+        <div v-if="!props.readOnly" class="flex justify-end">
           <UButton
             @click="modal.open({ patientCpf: props.patientCpf }).then((data) => { data.sendedData ? loadNotes() : null })"
             icon="i-lucide-plus" color="primary">
@@ -144,7 +145,7 @@ function formatDate(dateString: string) {
                 </div>
               </div>
 
-              <UDropdownMenu :items="getDropdownActions(note.id)" :ui="{ content: 'w-48' }">
+              <UDropdownMenu v-if="!props.readOnly" :items="getDropdownActions(note.id)" :ui="{ content: 'w-48' }">
                 <UButton icon="i-lucide-more-vertical" color="neutral" variant="ghost" size="sm" />
               </UDropdownMenu>
             </UCardSection>

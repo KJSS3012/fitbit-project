@@ -5,6 +5,7 @@ import type { TimeFilter } from '~/composables/useFitbitData'
 import { useDashboard } from '~/composables/useDashboard'
 import FitbitConnect from '~/components/shared/FitbitConnect.vue'
 import FilterBar from '~/components/dashboard/FilterBar.vue'
+import MedicalNoteList from '~/components/shared/MedicalNoteList.vue'
 
 definePageMeta({
   layout: 'dashboard',
@@ -359,4 +360,7 @@ const showInsufficientDataWarning = computed(() =>
       </div>
     </template>
   </UDashboardPanel>
+
+  <!-- Patient Notes - Read Only -->
+  <MedicalNoteList v-if="user" :patient-cpf="user.id" :read-only="true" />
 </template>
