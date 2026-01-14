@@ -8,6 +8,7 @@ from app.controllers.user_controller import router as user_router
 from app.controllers.authorization_controller import router as authorization_router
 from app.controllers.export_controller import router as export_router
 from app.controllers.notes_controller import router as notes_router
+from app.controllers.health_controller import router as health_router
 
 from app.database.connection import Base, engine
 
@@ -51,6 +52,7 @@ app.include_router(dashboard_router, prefix="/dashboard")
 app.include_router(user_router, prefix="/user")
 app.include_router(notes_router, prefix="/notes")
 app.include_router(export_router)
+app.include_router(health_router)
 
 
 # =========================
