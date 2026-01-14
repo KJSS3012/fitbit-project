@@ -1,0 +1,322 @@
+<script setup lang="ts">
+import { sub, startOfDay, endOfDay, format } from 'date-fns'
+import type { Period, Range } from '~/types/dashboard'
+import type { TimeFilter } from '~/composables/useFitbitData'
+import { useDashboard } from '~/composables/useDashboard'
+import FilterBar from '~/components/dashboard/FilterBar.vue'
+
+definePageMeta({
+  layout: 'dashboard',
+  middleware: 'auth'
+})
+
+const route = useRoute()
+const router = useRouter()
+const { user, isPatient, isDoctor } = useAuth()
+const { currentDateRange, isLoadingData, selectedPeriod } = useDashboard()
+const {
+  isSimulationMode,
+  toggleSimulation,
+  getStepsData,
+  getHeartRateData,
+  getSleepData,
+  getCaloriesData,
+  getStats,
+  hasInsufficientData
+} = useFitbitData()
+
+const patientId = computed(() => route.params.id as string)
+
+const isDoctorView = computed(() => isDoctor.value && patientId.value !== user.value?.id)
+
+const canEditSettings = computed(() => isPatient.value && patientId.value === user.value?.id)
+
+const range = computed<Range>(() => ({
+  start: startOfDay(new Date(currentDateRange.value.start)),
+  end: endOfDay(new Date(currentDateRange.value.end))
+}))
+
+/**
+ * Maps filter period to TimeFilter format used by chart components
+ */
+const period = computed<TimeFilter>(() => {
+  if (selectedPeriod.value === 'day') return 'daily'
+  if (selectedPeriod.value === 'week') return 'weekly'
+  if (selectedPeriod.value === 'month') return 'monthly'
+  return 'daily' // custom usa daily como fallback
+})
+
+const handleExport = () => {
+  router.push('/dashboard/export')
+}
+
+const stepsData = ref<Array<{ date: string, value: number }>>([])
+const heartRateData = ref<Array<{ date: string, value: number }>>([])
+const sleepData = ref<Array<{ date: string, value: number }>>([])
+const caloriesData = ref<Array<{ date: string, value: number }>>([])
+const stats = ref<{
+  steps: { total: number; average: number; max: number }
+  heartRate: { average: number; min: number; max: number }
+  sleep: { totalHours: number; averageHours: string }
+  calories: { total: number; average: number }
+} | null>(null)
+
+const notes = ref<Array<{
+  id: string
+  doctor_crm: string
+  text: string
+  metric_type?: string
+  created_at: string
+}>>([])
+
+const fetchData = async () => {
+  isLoadingData.value = true
+  try {
+    stepsData.value = await getStepsData(range.value.start, range.value.end, period.value)
+    heartRateData.value = await getHeartRateData(range.value.start, range.value.end, period.value)
+    sleepData.value = await getSleepData(range.value.start, range.value.end, period.value)
+    caloriesData.value = await getCaloriesData(range.value.start, range.value.end, period.value)
+    stats.value = await getStats(range.value.start, range.value.end)
+    notes.value = await $fetch(`/notes/notes/${patientId.value}`)
+  } catch (error) {
+    console.error('Error fetching data:', error)
+  } finally {
+    isLoadingData.value = false
+  }
+}
+
+onMounted(async () => {
+  await fetchData()
+})
+
+watch([range, period], async () => {
+  await fetchData()
+})
+
+const getMetricColor = (type: string) => {
+  switch (type) {
+    case 'hr': return 'error'
+    case 'steps': return 'primary'
+    case 'sleep': return 'info'
+    default: return 'neutral'
+  }
+}
+
+const getMetricLabel = (type: string) => {
+  switch (type) {
+    case 'hr': return 'FC'
+    case 'steps': return 'Passos'
+    case 'sleep': return 'Sono'
+    default: return type
+  }
+}
+
+const formatDate = (dateStr: string) => {
+  return format(new Date(dateStr), 'dd/MM HH:mm')
+}
+
+const hasData = computed(() =>
+  isSimulationMode.value && (
+    stepsData.value.length > 0 ||
+    heartRateData.value.length > 0 ||
+    sleepData.value.length > 0
+  )
+)
+
+const showInsufficientDataWarning = computed(() =>
+  isSimulationMode.value && hasInsufficientData(range.value.start, range.value.end, period.value)
+)
+
+if (!isSimulationMode.value) {
+  toggleSimulation()
+}
+</script>
+
+<template>
+  <UDashboardPanel id="patient-dashboard">
+    <template #header>
+      <UDashboardNavbar :title="isDoctorView ? 'Dashboard do Paciente' : (user?.name || 'Dashboard')"
+        :ui="{ right: 'gap-3' }">
+        <template #leading>
+          <UButton v-if="isDoctorView" icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/patients"
+            square />
+          <UDashboardSidebarCollapse v-else />
+        </template>
+
+        <template #right>
+          <UBadge v-if="isSimulationMode" color="success" variant="subtle" class="mr-2">
+            <UIcon name="i-lucide-flask-conical" class="size-4 mr-1" />
+            Modo Simulação
+          </UBadge>
+
+          <UPopover>
+            <UButton icon="i-lucide-plus" color="primary" variant="soft" square />
+
+            <template #content>
+              <div class="p-2 w-64">
+                <UButton :label="isSimulationMode ? 'Desativar Simulação' : 'Simular Dados'"
+                  :icon="isSimulationMode ? 'i-lucide-database-zap' : 'i-lucide-flask-conical'" color="neutral"
+                  variant="ghost" block class="justify-start mb-1" @click="toggleSimulation" />
+                <UButton label="Exportar Dados" icon="i-lucide-download" color="neutral" variant="ghost" block
+                  class="justify-start" @click="handleExport" />
+              </div>
+            </template>
+          </UPopover>
+
+          <UButton v-if="canEditSettings" icon="i-lucide-settings" color="neutral" variant="ghost"
+            to="/dashboard/settings" square />
+        </template>
+      </UDashboardNavbar>
+
+      <UDashboardToolbar>
+        <template #left>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full">
+            <UBadge v-if="isDoctorView" color="info" variant="subtle" class="shrink-0">
+              <UIcon name="i-lucide-eye" class="size-4 mr-1" />
+              Modo Visualização
+            </UBadge>
+
+            <FilterBar />
+          </div>
+        </template>
+      </UDashboardToolbar>
+    </template>
+
+    <template #body>
+      <div v-if="isLoadingData" class="p-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+          <USkeleton v-for="i in 4" :key="i" class="h-32" />
+        </div>
+        <div class="space-y-6">
+          <USkeleton v-for="i in 3" :key="i" class="h-96" />
+        </div>
+      </div>
+
+      <div v-else-if="!hasData" class="p-6">
+        <UCard>
+          <div class="flex flex-col items-center gap-4 py-12">
+            <UIcon name="i-lucide-database" class="size-16 text-muted" />
+            <div class="text-center">
+              <h3 class="text-lg font-semibold mb-2">Nenhum dado disponível</h3>
+              <p class="text-muted text-sm mb-4">
+                <template v-if="isSimulationMode">
+                  Nenhum dado encontrado para o período selecionado.
+                </template>
+                <template v-else>
+                  Ative o modo de simulação para visualizar dados de exemplo.
+                </template>
+              </p>
+              <UButton v-if="!isSimulationMode" @click="toggleSimulation" icon="i-lucide-flask-conical" color="primary">
+                Simular Dados
+              </UButton>
+            </div>
+          </div>
+        </UCard>
+      </div>
+
+      <div v-else class="space-y-6 p-6">
+        <UAlert v-if="showInsufficientDataWarning" color="warning" variant="subtle" icon="i-lucide-alert-triangle"
+          title="Dados insuficientes para visualização" class="mb-4">
+          <template #description>
+            <p v-if="period === 'monthly'">
+              O período selecionado não contém dados suficientes para a visualização mensal.
+              Por favor, selecione um período maior (mínimo 28 dias) ou escolha a visualização diária ou semanal.
+            </p>
+            <p v-else-if="period === 'weekly'">
+              O período selecionado não contém dados suficientes para a visualização semanal.
+              Por favor, selecione um período maior (mínimo 7 dias) ou escolha a visualização diária.
+            </p>
+          </template>
+        </UAlert>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <DashboardStatsCard title="Passos Totais" :value="stats!.steps.total.toLocaleString('pt-BR')"
+            subtitle="passos" icon="i-lucide-footprints" color="primary" />
+          <DashboardStatsCard title="Média de Passos" :value="stats!.steps.average.toLocaleString('pt-BR')"
+            subtitle="por dia" icon="i-lucide-trending-up" color="success" />
+          <DashboardStatsCard title="FC Média" :value="stats!.heartRate.average" subtitle="bpm"
+            icon="i-lucide-heart-pulse" color="error" />
+          <DashboardStatsCard title="Sono Médio" :value="stats!.sleep.averageHours" subtitle="horas"
+            icon="i-lucide-moon" color="info" />
+        </div>
+
+        <!-- Clinical Notes Timeline -->
+        <UCard v-if="notes.length > 0" class="mt-6">
+          <template #header>
+            <h3 class="text-lg font-semibold">Anotações Clínicas</h3>
+          </template>
+
+          <div class="space-y-4">
+            <div v-for="note in notes" :key="note.id" class="border-l-4 border-primary pl-4 py-2">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-lucide-user" class="size-4 text-muted" />
+                  <span class="text-sm font-medium">Dr. {{ note.doctor_crm }}</span>
+                  <UBadge v-if="note.metric_type" :color="getMetricColor(note.metric_type)" variant="subtle" size="xs">
+                    {{ getMetricLabel(note.metric_type) }}
+                  </UBadge>
+                </div>
+                <span class="text-xs text-muted">
+                  {{ formatDate(note.created_at) }}
+                </span>
+              </div>
+              <p class="text-sm">{{ note.text }}</p>
+            </div>
+          </div>
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Passos</h3>
+              <UBadge color="neutral" variant="subtle">
+                {{ stepsData.length }} registros
+              </UBadge>
+            </div>
+          </template>
+          <DashboardBarChart :data="stepsData" label="Passos" color="#3b82f6" />
+          <DashboardChartStats :data="stepsData" label="passos" />
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Frequência Cardíaca em Repouso</h3>
+              <UBadge color="neutral" variant="subtle">
+                {{ heartRateData.length }} registros
+              </UBadge>
+            </div>
+          </template>
+          <DashboardLineChart :data="heartRateData" label="BPM" color="#ef4444" />
+          <DashboardChartStats :data="heartRateData" label="bpm" />
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Sono (minutos)</h3>
+              <UBadge color="neutral" variant="subtle">
+                {{ sleepData.length }} registros
+              </UBadge>
+            </div>
+          </template>
+          <DashboardLineChart :data="sleepData" label="Minutos" color="#8b5cf6" :show-fill="true" />
+          <DashboardChartStats :data="sleepData" label="minutos" />
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Calorias</h3>
+              <UBadge color="neutral" variant="subtle">
+                {{ caloriesData.length }} registros
+              </UBadge>
+            </div>
+          </template>
+          <DashboardLineChart :data="caloriesData" label="Calorias" color="#f59e0b" />
+          <DashboardChartStats :data="caloriesData" label="kcal" />
+        </UCard>
+      </div>
+    </template>
+  </UDashboardPanel>
+</template>

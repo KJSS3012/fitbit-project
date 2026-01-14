@@ -5,6 +5,9 @@
 .nitro
 .cache
 dist
+.nuxt
+node_modules/
+./dashboard
 
 # Node dependencies
 node_modules
