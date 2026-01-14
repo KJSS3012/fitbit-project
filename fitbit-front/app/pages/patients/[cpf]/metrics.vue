@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { sub, startOfDay, endOfDay, format } from 'date-fns'
+import { sub, startOfDay, endOfDay, format, parseISO, isWithinInterval } from 'date-fns'
 import type { Period } from '~/types/dashboard'
 import MedicalNoteList from '~/components/shared/MedicalNoteList.vue'
+import fitbitMockData from '~/assets/data/fitbit_api_mock_2025_2026.json'
 
 definePageMeta({
   layout: 'dashboard',
@@ -26,6 +27,91 @@ const customStartDate = ref('')
 const customEndDate = ref('')
 const toast = useToast()
 const isNoteModalOpen = ref(false)
+
+// Mock patient data
+const mockPatientData = ref({
+  patient_name: 'João Silva',
+  patient_cpf: patientCpf.value,
+  last_sync: 'há 2 horas',
+  is_data_outdated: false,
+  metrics: [] as any[]
+})
+
+// Function to get mock data for a date range
+const getMockDataForRange = (startDate: Date, endDate: Date) => {
+  const start = startOfDay(startDate)
+  const end = endOfDay(endDate)
+
+  const metrics: any[] = []
+
+  // Get steps data
+  const stepsData = fitbitMockData['activities-steps'] || []
+  const caloriesData = fitbitMockData['activities-calories'] || []
+  const heartData = fitbitMockData['activities-heart'] || []
+  const sleepData = fitbitMockData['sleep'] || []
+
+  // Create a map of dates to aggregate data
+  const dateMap = new Map<string, any>()
+
+  // Process steps
+  stepsData.forEach((item: any) => {
+    const date = parseISO(item.dateTime)
+    if (isWithinInterval(date, { start, end })) {
+      const dateStr = format(date, 'yyyy-MM-dd')
+      if (!dateMap.has(dateStr)) {
+        dateMap.set(dateStr, {
+          date: dateStr,
+          steps: 0,
+          calories: 0,
+          hr_avg: 0,
+          sleep_hours: 0
+        })
+      }
+      dateMap.get(dateStr)!.steps = parseInt(item.value) || 0
+    }
+  })
+
+  // Process calories
+  caloriesData.forEach((item: any) => {
+    const date = parseISO(item.dateTime)
+    if (isWithinInterval(date, { start, end })) {
+      const dateStr = format(date, 'yyyy-MM-dd')
+      if (dateMap.has(dateStr)) {
+        dateMap.get(dateStr)!.calories = parseInt(item.value) || 0
+      }
+    }
+  })
+
+  // Process heart rate
+  heartData.forEach((item: any) => {
+    const date = parseISO(item.dateTime)
+    if (isWithinInterval(date, { start, end })) {
+      const dateStr = format(date, 'yyyy-MM-dd')
+      if (dateMap.has(dateStr)) {
+        dateMap.get(dateStr)!.hr_avg = item.value?.restingHeartRate || 0
+      }
+    }
+  })
+
+  // Process sleep
+  sleepData.forEach((item: any) => {
+    const date = parseISO(item.dateOfSleep)
+    if (isWithinInterval(date, { start, end })) {
+      const dateStr = format(date, 'yyyy-MM-dd')
+      if (dateMap.has(dateStr)) {
+        const summary = item.levels?.summary || {}
+        const deep = summary.deep?.minutes || 0
+        const light = summary.light?.minutes || 0
+        const rem = summary.rem?.minutes || 0
+        const totalSleepMinutes = deep + light + rem
+        dateMap.get(dateStr)!.sleep_hours = Math.round((totalSleepMinutes / 60) * 10) / 10 // Convert to hours with 1 decimal
+      }
+    }
+  })
+
+  // Convert map to array and sort by date
+  return Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+}
 
 const currentDateRange = computed(() => {
   const now = new Date()
@@ -60,11 +146,29 @@ onMounted(async () => {
 })
 
 const loadPatientData = async () => {
-  const startDate = format(range.value.start, 'yyyy-MM-dd')
-  const endDate = format(range.value.end, 'yyyy-MM-dd')
+  isLoading.value = true
 
   try {
-    await fetchPatientMetrics(patientCpf.value, startDate, endDate)
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    const startDate = format(range.value.start, 'yyyy-MM-dd')
+    const endDate = format(range.value.end, 'yyyy-MM-dd')
+
+    // Get mock data for the selected range
+    const mockMetrics = getMockDataForRange(range.value.start, range.value.end)
+
+    mockPatientData.value = {
+      patient_name: 'João Silva',
+      patient_cpf: patientCpf.value,
+      last_sync: 'há 2 horas',
+      is_data_outdated: false,
+      metrics: mockMetrics
+    }
+
+    // Update the composable data
+    selectedPatientMetrics.value = mockPatientData.value
+
   } catch (error: any) {
     console.error('Failed to load patient data:', error)
 
@@ -76,6 +180,8 @@ const loadPatientData = async () => {
       color: 'error',
       icon: 'i-lucide-alert-circle'
     })
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -341,7 +447,7 @@ const isFormValid = computed(() => {
         <!-- Metrics Content -->
         <template v-else-if="selectedPatientMetrics">
           <!-- Stats Cards -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-2 gap-4">
             <DashboardStatsCard title="Passos Totais" :value="stats.steps.total.toLocaleString()"
               :subtitle="`Média: ${stats.steps.average.toLocaleString()}`" icon="i-lucide-footprints" color="primary" />
             <DashboardStatsCard title="Calorias" :value="stats.calories.total.toLocaleString()"
