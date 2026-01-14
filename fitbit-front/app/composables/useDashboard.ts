@@ -27,6 +27,14 @@ const _useDashboard = () => {
     isNotificationsSlideoverOpen.value = false
   })
 
+  // Helper to format a Date as YYYY-MM-DD in local timezone
+  const formatLocalDate = (d: Date) => {
+    const yyyy = d.getFullYear()
+    const mm = `${d.getMonth() + 1}`.padStart(2, '0')
+    const dd = `${d.getDate()}`.padStart(2, '0')
+    return `${yyyy}-${mm}-${dd}`
+  }
+
   /**
    * Calculates date range based on selected period
    */
@@ -51,14 +59,6 @@ const _useDashboard = () => {
       start: formatLocalDate(start),
       end: formatLocalDate(end)
     }
-  }
-
-  // Helper to format a Date as YYYY-MM-DD in local timezone
-  const formatLocalDate = (d: Date) => {
-    const yyyy = d.getFullYear()
-    const mm = `${d.getMonth() + 1}`.padStart(2, '0')
-    const dd = `${d.getDate()}`.padStart(2, '0')
-    return `${yyyy}-${mm}-${dd}`
   }
 
   /**
@@ -144,11 +144,35 @@ const _useDashboard = () => {
    * Changes filter period
    */
   const changePeriod = async (period: FilterPeriod) => {
-    if (period === 'custom' && !customDateRange.value) {
-      return
-    }
-    selectedPeriod.value = period
     isLoadingData.value = true
+
+    if (period === 'month' || period === 'week') {
+       const end = new Date()
+       const start = new Date()
+       
+       if (period === 'month') {
+         start.setMonth(end.getMonth() - 1)
+       } else {
+         start.setDate(end.getDate() - 7)
+       }
+
+       customDateRange.value = {
+         start: formatLocalDate(start),
+         end: formatLocalDate(end)
+       }
+       selectedPeriod.value = 'custom'
+    } 
+    else if (period === 'custom') {
+       if (!customDateRange.value) {
+         isLoadingData.value = false
+         return
+       }
+       selectedPeriod.value = 'custom'
+    } 
+    else {
+       // 'day'
+       selectedPeriod.value = period
+    }
 
     // Use nextTick to ensure state is updated before triggering loading
     await nextTick()
