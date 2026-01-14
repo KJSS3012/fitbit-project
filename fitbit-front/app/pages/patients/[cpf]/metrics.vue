@@ -138,9 +138,9 @@ const validateCustomRange = (start: string, end: string): boolean => {
  * Opens custom date range modal
  */
 const openCustomDialog = () => {
-  if (selectedPeriod.value === 'custom' && customStartDate.value && customEndDate.value) {
-    // Pre-fill with saved values
-    showCustomDialog.value = true
+  if (customRange.value) {
+    customStartDate.value = customRange.value.start.toISOString().split('T')[0]!
+    customEndDate.value = customRange.value.end.toISOString().split('T')[0]!
   } else {
     // Pre-fill with last week by default
     const today = new Date()
@@ -148,8 +148,8 @@ const openCustomDialog = () => {
     lastWeek.setDate(today.getDate() - 7)
     customStartDate.value = lastWeek.toISOString().split('T')[0]!
     customEndDate.value = today.toISOString().split('T')[0]!
-    showCustomDialog.value = true
   }
+  showCustomDialog.value = true
 }
 
 /**
@@ -178,6 +178,8 @@ const cancelCustomRange = () => {
   if (selectedPeriod.value === 'custom' && !customStartDate.value) {
     selectedPeriod.value = 'week'
   }
+  customStartDate.value = ''
+  customEndDate.value = ''
 }
 
 // Watch period changes
@@ -268,9 +270,9 @@ const goBack = () => {
   router.push('/patients')
 }
 
-const openNoteModal = () => {
-  isNoteModalOpen.value = true
-}
+const isFormValid = computed(() => {
+  return !!customStartDate.value && !!customEndDate.value
+})
 </script>
 
 <template>
@@ -307,7 +309,7 @@ const openNoteModal = () => {
         </div>
 
         <!-- Period Selector -->
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3 flex-wrap">
           <UButtonGroup>
             <UButton :color="selectedPeriod === 'day' ? 'primary' : 'neutral'"
               :variant="selectedPeriod === 'day' ? 'solid' : 'ghost'" @click="selectedPeriod = 'day'">
@@ -322,6 +324,11 @@ const openNoteModal = () => {
               Mês
             </UButton>
           </UButtonGroup>
+
+          <UButton icon="i-lucide-calendar" size="sm" variant="outline"
+            :color="selectedPeriod === 'custom' ? 'primary' : 'secondary'" @click="openCustomDialog">
+            {{ selectedPeriod === 'custom' ? 'Personalizado ✓' : 'Personalizado' }}
+          </UButton>
         </div>
 
         <!-- Loading State -->
@@ -397,6 +404,47 @@ const openNoteModal = () => {
   </UDashboardPanel>
 
   <MedicalNoteList :patient-cpf="patientCpf" />
+
+  <!-- Custom Date Range Modal -->
+  <Teleport v-if="showCustomDialog" to="body">
+    <Transition enter-active-class="transition-opacity duration-200" enter-from-class="opacity-0"
+      enter-to-class="opacity-100" leave-active-class="transition-opacity duration-200" leave-from-class="opacity-100"
+      leave-to-class="opacity-0">
+      <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        @click.self="showCustomDialog = false">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4">
+          <h3 class="text-lg font-semibold mb-4">Período Personalizado</h3>
+
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Data Inicial <span class="text-red-500">*</span>
+              </label>
+              <UInput v-model="customStartDate" type="date" icon="i-lucide-calendar" />
+            </div>
+
+            <div class="space-y-2">
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Data Final <span class="text-red-500">*</span>
+              </label>
+              <UInput v-model="customEndDate" type="date" icon="i-lucide-calendar" />
+            </div>
+
+            <UAlert color="info" variant="subtle" icon="i-lucide-info" title="Importante">
+              <template #description>
+                O período personalizado não pode exceder 1 ano e a data final não pode ser posterior à data de hoje.
+              </template>
+            </UAlert>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-6">
+            <UButton label="Cancelar" color="neutral" variant="ghost" @click="cancelCustomRange" />
+            <UButton label="Aplicar Filtro" color="primary" :disabled="!isFormValid" @click="applyCustomRange" />
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 
   <!-- Note Modal -->
 </template>
