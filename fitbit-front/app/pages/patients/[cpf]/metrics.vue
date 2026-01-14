@@ -341,7 +341,7 @@ const isFormValid = computed(() => {
         <!-- Metrics Content -->
         <template v-else-if="selectedPatientMetrics">
           <!-- Stats Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <DashboardStatsCard title="Passos Totais" :value="stats.steps.total.toLocaleString()"
               :subtitle="`Média: ${stats.steps.average.toLocaleString()}`" icon="i-lucide-footprints" color="primary" />
             <DashboardStatsCard title="Calorias" :value="stats.calories.total.toLocaleString()"
