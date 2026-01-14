@@ -27,7 +27,7 @@ interface FitbitApiResponse {
 export const useFitbitData = () => {
   const config = useRuntimeConfig()
   const { token } = useAuth()
-  const { isFitbitConnected } = useFitbitAuth()
+  const { isFitbitConnected, connectFitbit } = useFitbitAuth()
 
   const API_BASE_URL = config.public.apiBase || 'http://localhost:8000'
 
@@ -46,9 +46,19 @@ export const useFitbitData = () => {
   /**
    * Enables Fitbit mode (disables simulation)
    */
-  const enableFitbitMode = () => {
+  const enableFitbitMode = async () => {
     isFitbitMode.value = true
     isSimulationMode.value = false
+
+    // Try to connect to Fitbit if not already connected
+    if (!isFitbitConnected.value) {
+      try {
+        await connectFitbit()
+      } catch (error) {
+        // Connection failed, but mode is still enabled
+        console.warn('Failed to connect to Fitbit:', error)
+      }
+    }
   }
 
   /**
