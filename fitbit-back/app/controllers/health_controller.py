@@ -6,6 +6,7 @@ from app.database.connection import get_db
 router = APIRouter()
 
 @router.get("/health", tags=["System"], summary="Verifica saúde do sistema")
+@router.head("/health", tags=["System"], summary="Verifica saúde do sistema")
 def health_check(db: Session = Depends(get_db)):
     """
     Endpoint used by monitoring tools.
