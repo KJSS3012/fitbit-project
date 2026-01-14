@@ -100,8 +100,7 @@ function formatDate(dateString: string) {
       <div class="space-y-4">
         <!-- Add Note Button - Only show if not read-only -->
         <div v-if="!props.readOnly" class="flex justify-end">
-          <UButton
-            @click="modal.open({ patientCpf: props.patientCpf }).then((data) => { data.sendedData ? loadNotes() : null })"
+          <UButton @click="modal.open({ patientCpf: props.patientCpf }).then((data) => { data ? loadNotes() : null })"
             icon="i-lucide-plus" color="primary">
             Adicionar Nota
           </UButton>
