@@ -16,7 +16,10 @@ const neutrals = ['slate', 'gray', 'zinc', 'neutral', 'stone']
  * Extracts first name from full name
  */
 const firstName = computed(() => {
-  const fullName = authUser.value?.name || 'Usuário'
+  const fullName = authUser.value?.name
+  if (!fullName || fullName.trim() === '') {
+    return authUser.value?.type === 'medico' ? 'Dr. Médico' : 'Paciente'
+  }
   return fullName.split(' ')[0]
 })
 

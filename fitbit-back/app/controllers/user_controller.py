@@ -77,9 +77,14 @@ def get_current_user_info(
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     
+    # Fallback name for doctors if not set
+    user_name = user.name
+    if user_type == "doctor" and (not user_name or user_name.strip() == ""):
+        user_name = f"Dr. {user_id}"
+    
     return UserResponse(
         id=user_id,
-        name=user.name,
+        name=user_name,
         type=user_type
     )
 

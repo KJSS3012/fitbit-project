@@ -218,7 +218,7 @@ const showInsufficientDataWarning = computed(() =>
                     <UButton :label="isFitbitMode ? 'Fitbit (Ativo)' : 'Ativar Fitbit'"
                       :icon="isFitbitMode ? 'i-lucide-check-circle' : 'i-simple-icons-fitbit'"
                       :color="isFitbitMode ? 'primary' : 'neutral'" :variant="isFitbitMode ? 'soft' : 'ghost'" block
-                      class="justify-start" :disabled="!isFitbitConnected" @click="enableFitbitMode" />
+                      class="justify-start" :disabled="false" @click="enableFitbitMode" />
                     <UButton :label="isSimulationMode ? 'Simulação (Ativa)' : 'Ativar Simulação'"
                       :icon="isSimulationMode ? 'i-lucide-check-circle' : 'i-lucide-flask-conical'"
                       :color="isSimulationMode ? 'success' : 'neutral'" :variant="isSimulationMode ? 'soft' : 'ghost'"
