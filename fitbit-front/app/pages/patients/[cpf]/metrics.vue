@@ -13,7 +13,7 @@ definePageMeta({
 const route = useRoute()
 const router = useRouter()
 const { user, isDoctor } = useAuth()
-const { fetchPatientMetrics, selectedPatientMetrics, isLoading } = useDoctorPatients()
+const { fetchPatientMetrics, selectedPatientMetrics, isLoading, fetchAuthorizedPatients } = useDoctorPatients()
 const { enableSimulationMode } = useFitbitData()
 
 const patientCpf = computed(() => route.params.cpf as string)
@@ -30,13 +30,22 @@ const customEndDate = ref('')
 const toast = useToast()
 const isNoteModalOpen = ref(false)
 
+// Define the type for patient data
+interface PatientData {
+  patient_name: string
+  patient_cpf: string
+  last_sync: string
+  is_data_outdated: boolean
+  metrics: any[]
+}
+
 // Patient data from backend (not mock anymore)
-const mockPatientData = ref({
+const mockPatientData = ref<PatientData>({
   patient_name: '',
   patient_cpf: patientCpf.value,
   last_sync: '',
   is_data_outdated: false,
-  metrics: [] as any[]
+  metrics: []
 })
 
 // Function to get mock data for a date range
@@ -144,6 +153,30 @@ onMounted(async () => {
     return
   }
 
+  try {
+    const patients = await fetchAuthorizedPatients()
+    const hasAccess = patients.some(p => p.cpf === patientCpf.value)
+    if (!hasAccess) {
+      toast.add({
+        title: 'Acesso negado',
+        description: 'Você não tem acesso aos dados deste paciente',
+        color: 'error',
+        icon: 'i-lucide-shield-x'
+      })
+      await navigateTo('/patients')
+      return
+    }
+  } catch (error) {
+    toast.add({
+      title: 'Erro',
+      description: 'Não foi possível verificar permissões',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    await navigateTo('/patients')
+    return
+  }
+
   enableSimulationMode()
   await loadPatientData()
 })
@@ -156,7 +189,7 @@ const loadPatientData = async () => {
     const endDate = format(range.value.end, 'yyyy-MM-dd')
 
     // Fetch real patient data from backend
-    const realData = await fetchPatientMetrics(patientCpf.value, startDate, endDate)
+    const realData = await fetchPatientMetrics(patientCpf.value, startDate, endDate) as PatientData
 
     // If backend doesn't return metrics, use mock data
     if (!realData?.metrics || realData.metrics.length === 0) {
@@ -199,12 +232,35 @@ const validateCustomRange = (start: string, end: string): boolean => {
     return false
   }
 
-  // Parse as local dates to avoid timezone issues
-  const [startY, startM, startD] = start.split('-').map(Number)
-  const [endY, endM, endD] = end.split('-').map(Number)
+  const startParts = start.split('-')
+  const endParts = end.split('-')
+  if (startParts.length !== 3 || endParts.length !== 3) {
+    toast.add({
+      title: 'Período inválido',
+      description: 'Formato de data inválido.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return false
+  }
+  const startY = Number(startParts[0])
+  const startM = Number(startParts[1])
+  const startD = Number(startParts[2])
+  const endY = Number(endParts[0])
+  const endM = Number(endParts[1])
+  const endD = Number(endParts[2])
+  if (isNaN(startY) || isNaN(startM) || isNaN(startD) || isNaN(endY) || isNaN(endM) || isNaN(endD)) {
+    toast.add({
+      title: 'Período inválido',
+      description: 'Datas inválidas.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    return false
+  }
   const startDt = new Date(startY, startM - 1, startD)
   const endDt = new Date(endY, endM - 1, endD)
-  
+
   // Today at midnight local time
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -271,10 +327,15 @@ const applyCustomRange = () => {
     return
   }
 
-  // Parse as local dates to avoid timezone issues
-  const [startY, startM, startD] = customStartDate.value.split('-').map(Number)
-  const [endY, endM, endD] = customEndDate.value.split('-').map(Number)
-  
+  const startParts = customStartDate.value.split('-')
+  const endParts = customEndDate.value.split('-')
+  const startY = Number(startParts[0])
+  const startM = Number(startParts[1])
+  const startD = Number(startParts[2])
+  const endY = Number(endParts[0])
+  const endM = Number(endParts[1])
+  const endD = Number(endParts[2])
+
   customRange.value = {
     start: new Date(startY, startM - 1, startD),
     end: new Date(endY, endM - 1, endD)
