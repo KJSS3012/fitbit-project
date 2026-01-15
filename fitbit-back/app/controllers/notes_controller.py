@@ -6,6 +6,7 @@ from datetime import date
 from app.database.connection import get_db
 from app.api.dependencies import get_current_user
 from app.models.clinical_notes import ClinicalNote
+from app.models.doctor import Doctor
 from app.repositories.clinical_notes_repository import ClinicalNotesRepository
 import uuid
 
@@ -22,6 +23,7 @@ class NoteResponse(BaseModel):
     id: str
     patient_cpf: str
     doctor_crm: str
+    doctor_name: str
     text: str
     metric_type: Optional[str]
     start_date: Optional[date]
@@ -70,6 +72,7 @@ async def get_notes(
             id=note.id,
             patient_cpf=note.patient_cpf,
             doctor_crm=note.doctor_crm,
+            doctor_name=db.query(Doctor).filter(Doctor.crm == note.doctor_crm).first().name if db.query(Doctor).filter(Doctor.crm == note.doctor_crm).first() else f"Dr. {note.doctor_crm}",
             text=note.text,
             metric_type=note.metric_type,
             start_date=note.start_date,

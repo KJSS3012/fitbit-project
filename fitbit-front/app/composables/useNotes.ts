@@ -2,6 +2,7 @@ export interface ClinicalNote {
   id: string
   patient_cpf: string
   doctor_crm: string
+  doctor_name: string
   text: string
   metric_type?: string | null
   start_date?: string | null
