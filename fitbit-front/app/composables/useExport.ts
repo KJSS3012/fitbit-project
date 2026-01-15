@@ -8,6 +8,7 @@ export interface ExportOptions {
   startDate: Date
   endDate: Date
   patientId: string
+  patientName: string
 }
 
 export const useExport = () => {
@@ -48,7 +49,7 @@ export const useExport = () => {
     window.URL.revokeObjectURL(url)
   }
 
-  const exportSimulatedData = async (format: ExportFormat, startDate: Date, endDate: Date, patientId: string) => {
+  const exportSimulatedData = async (format: ExportFormat, startDate: Date, endDate: Date, patientId: string, patientName: string) => {
     await new Promise(resolve => setTimeout(resolve, 1000))
 
     const [stepsData, heartRateData, sleepData, caloriesData] = await Promise.all([
@@ -62,7 +63,7 @@ export const useExport = () => {
       metadata: {
         generatedAt: new Date().toISOString(),
         patientId: patientId,
-        patientName: user.value?.name || 'Paciente',
+        patientName: patientName,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString()
       },
@@ -109,7 +110,7 @@ export const useExport = () => {
 
       doc.setFontSize(12)
       let yPos = 35
-      doc.text(`Paciente: ${user.value?.name || 'Paciente'}`, 20, yPos)
+      doc.text(`Paciente: ${patientName}`, 20, yPos)
       yPos += 7
       doc.text(`ID: ${patientId}`, 20, yPos)
       yPos += 7
@@ -167,9 +168,9 @@ export const useExport = () => {
     })
   }
 
-  const exportToPDF = async (startDate: Date, endDate: Date, patientId: string) => {
+  const exportToPDF = async (startDate: Date, endDate: Date, patientId: string, patientName: string) => {
     if (isSimulationMode.value) {
-      await exportSimulatedData('pdf', startDate, endDate, patientId)
+      await exportSimulatedData('pdf', startDate, endDate, patientId, patientName)
       return
     }
 
@@ -198,9 +199,9 @@ export const useExport = () => {
     }
   }
 
-  const exportToCSV = async (startDate: Date, endDate: Date, patientId: string) => {
+  const exportToCSV = async (startDate: Date, endDate: Date, patientId: string, patientName: string) => {
     if (isSimulationMode.value) {
-      await exportSimulatedData('csv', startDate, endDate, patientId)
+      await exportSimulatedData('csv', startDate, endDate, patientId, patientName)
       return
     }
 
@@ -229,9 +230,9 @@ export const useExport = () => {
     }
   }
 
-  const exportToJSON = async (startDate: Date, endDate: Date, patientId: string) => {
+  const exportToJSON = async (startDate: Date, endDate: Date, patientId: string, patientName: string) => {
     if (isSimulationMode.value) {
-      await exportSimulatedData('json', startDate, endDate, patientId)
+      await exportSimulatedData('json', startDate, endDate, patientId, patientName)
       return
     }
 
@@ -271,13 +272,13 @@ export const useExport = () => {
     try {
       switch (options.format) {
         case 'pdf':
-          await exportToPDF(options.startDate, options.endDate, options.patientId)
+          await exportToPDF(options.startDate, options.endDate, options.patientId, options.patientName)
           break
         case 'csv':
-          await exportToCSV(options.startDate, options.endDate, options.patientId)
+          await exportToCSV(options.startDate, options.endDate, options.patientId, options.patientName)
           break
         case 'json':
-          await exportToJSON(options.startDate, options.endDate, options.patientId)
+          await exportToJSON(options.startDate, options.endDate, options.patientId, options.patientName)
           break
       }
     } catch (error: any) {

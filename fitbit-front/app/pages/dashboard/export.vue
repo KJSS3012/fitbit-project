@@ -12,6 +12,7 @@ const router = useRouter()
 const route = useRoute()
 const { user, isDoctor } = useAuth()
 const { exportData, isExporting } = useExport()
+const { authorizedPatients, fetchAuthorizedPatients } = useDoctorPatients()
 
 const selectedFormat = ref<ExportFormat>('pdf')
 const range = ref<Range>({
@@ -25,10 +26,16 @@ const patientId = computed(() => route.query.patientId as string || user.value?.
 // For doctors, patient name might be different
 const patientName = computed(() => {
   if (isDoctor.value && route.query.patientId) {
-    // TODO: Fetch patient name from API
-    return 'Paciente'
+    const patient = authorizedPatients.value.find(p => p.cpf === route.query.patientId)
+    return patient?.name || 'Paciente'
   }
   return user.value?.name || 'Paciente'
+})
+
+onMounted(async () => {
+  if (isDoctor.value) {
+    await fetchAuthorizedPatients()
+  }
 })
 
 const formatTabs = [
@@ -60,7 +67,8 @@ const handleExport = async () => {
     format: selectedFormat.value,
     startDate: range.value.start,
     endDate: range.value.end,
-    patientId: patientId.value
+    patientId: patientId.value,
+    patientName: patientName.value
   })
 
   if (!isExporting.value) {
