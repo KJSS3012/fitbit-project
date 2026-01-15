@@ -6,11 +6,12 @@ definePageMeta({
   middleware: 'auth'
 })
 
-const { user, isPatient } = useAuth()
+const { user, isPatient, isDoctor } = useAuth()
 const route = useRoute()
+const router = useRouter()
 
-// Only redirect if not patient AND not already on settings page
-if (!isPatient.value && !route.path.startsWith('/dashboard/settings')) {
+// Only redirect if not patient AND not doctor AND not already on settings page
+if (!isPatient.value && !isDoctor.value && !route.path.startsWith('/dashboard/settings')) {
   navigateTo('/dashboard/main', { replace: true })
 }
 
@@ -24,6 +25,21 @@ const links = [[{
   icon: 'i-lucide-shield',
   to: '/dashboard/settings/security'
 }]] satisfies NavigationMenuItem[][]
+
+// For doctors, only show Geral tab
+const doctorLinks = [[{
+  label: 'Geral',
+  icon: 'i-lucide-user',
+  to: '/dashboard/settings',
+  exact: true
+}]] satisfies NavigationMenuItem[][]
+
+const navigationLinks = computed(() => {
+  if (isDoctor.value) {
+    return doctorLinks
+  }
+  return links
+})
 </script>
 
 <template>
@@ -31,12 +47,12 @@ const links = [[{
     <template #header>
       <UDashboardNavbar title="Configurações">
         <template #leading>
-          <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" to="/dashboard/main" square />
+          <UButton icon="i-lucide-arrow-left" color="neutral" variant="ghost" @click="router.back()" square />
         </template>
       </UDashboardNavbar>
 
       <UDashboardToolbar>
-        <UNavigationMenu :items="links" highlight class="-mx-1 flex-1" />
+        <UNavigationMenu :items="navigationLinks" highlight class="-mx-1 flex-1" />
       </UDashboardToolbar>
     </template>
 

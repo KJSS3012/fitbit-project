@@ -139,7 +139,7 @@ function formatDate(dateString: string) {
               <div class="flex items-center gap-2">
                 <UAvatar icon="i-lucide-user" />
                 <div>
-                  <div class="text-sm font-medium">Dr. {{ note.doctor_crm }}</div>
+                  <div class="text-sm font-medium">Dr. {{ note.doctor_name }}</div>
                   <div class="text-xs text-gray-500">{{ formatDate(note.created_at) }}</div>
                 </div>
               </div>

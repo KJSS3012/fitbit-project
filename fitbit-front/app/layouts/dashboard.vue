@@ -14,14 +14,29 @@ onMounted(async () => {
 
 const links = computed(() => {
   if (isDoctor.value) {
-    return [[{
+    const baseLinks = [[{
       label: 'Pacientes',
       icon: 'i-lucide-users',
-      to: '/dashboard',
+      to: '/patients',
       onSelect: () => {
         open.value = false
       }
     }]] satisfies NavigationMenuItem[][]
+
+    // Add export button if on patient metrics page
+    if (route.path.includes('/patients/') && route.path.includes('/metrics')) {
+      const patientCpf = route.params.cpf as string
+      baseLinks.push([{
+        label: 'Exportar Dados',
+        icon: 'i-lucide-download',
+        to: `/dashboard/export?patientId=${patientCpf}`,
+        onSelect: () => {
+          open.value = false
+        }
+      }])
+    }
+
+    return baseLinks
   } else if (isPatient.value) {
     return [[{
       label: 'Meu Dashboard',
@@ -55,13 +70,13 @@ const groups = computed(() => [{
     <UDashboardSidebar id="default" v-model:open="open" collapsible resizable class="bg-elevated/25"
       :ui="{ footer: 'lg:border-t lg:border-default' }">
       <template #header="{ collapsed }">
-        <DashboardTeamsMenu :collapsed="collapsed" :disable-dropdown="route.path.includes('/patients/')" />
+        <DashboardTeamsMenu :collapsed="collapsed" :disable-dropdown="true" />
       </template>
 
       <template #default="{ collapsed }">
         <UDashboardSearchButton :collapsed="collapsed" class="bg-transparent ring-default" />
 
-        <UNavigationMenu :collapsed="collapsed" :items="links[0]" orientation="vertical" tooltip popover />
+        <UNavigationMenu :collapsed="collapsed" :items="links" orientation="vertical" tooltip popover />
       </template>
 
       <template #footer="{ collapsed }">

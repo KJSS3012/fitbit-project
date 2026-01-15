@@ -25,8 +25,8 @@ const profile = reactive<Partial<ProfileSchema>>({
 })
 
 const passwordSchema = z.object({
-  current: z.string().min(8, 'Deve ter pelo menos 8 caracteres'),
-  new: z.string().min(8, 'Deve ter pelo menos 8 caracteres')
+  current: z.string().min(12, 'Deve ter pelo menos 12 caracteres'),
+  new: z.string().min(12, 'Deve ter pelo menos 12 caracteres')
 })
 
 type PasswordSchema = z.output<typeof passwordSchema>
@@ -93,21 +93,51 @@ async function onSubmit(event: FormSubmitEvent<ProfileSchema>) {
 }
 
 async function onPasswordSubmit() {
-  // TODO: Implementar mudança de senha
-  // await $fetch('/api/auth/change-password', {
-  //   method: 'POST',
-  //   body: password
-  // })
+  isLoading.value = true
 
-  toast.add({
-    title: 'Senha atualizada',
-    description: 'Sua senha foi alterada com sucesso.',
-    icon: 'i-lucide-check',
-    color: 'success'
-  })
+  try {
+    const updateData: { current_password?: string; new_password?: string } = {}
 
-  password.current = undefined
-  password.new = undefined
+    if (password.current && password.new) {
+      updateData.current_password = password.current
+      updateData.new_password = password.new
+    } else {
+      toast.add({
+        title: 'Campos obrigatórios',
+        description: 'Preencha a senha atual e a nova senha',
+        color: 'error'
+      })
+      return
+    }
+
+    await $fetch(`${config.public.apiBase}/user/me`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${token.value}`
+      },
+      body: updateData
+    })
+
+    toast.add({
+      title: 'Senha atualizada',
+      description: 'Sua senha foi alterada com sucesso.',
+      icon: 'i-lucide-check',
+      color: 'success'
+    })
+
+    password.current = undefined
+    password.new = undefined
+
+  } catch (error: any) {
+    toast.add({
+      title: 'Erro ao atualizar senha',
+      description: error.data?.detail || 'Tente novamente',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -127,7 +157,8 @@ async function onPasswordSubmit() {
     </UPageCard>
   </UForm>
 
-  <UPageCard title="Senha" description="Confirme sua senha atual antes de definir uma nova." variant="subtle" class="mt-6">
+  <UPageCard title="Senha" description="Confirme sua senha atual antes de definir uma nova." variant="subtle"
+    class="mt-6">
     <UForm :schema="passwordSchema" :state="password" :validate="validatePassword" class="flex flex-col gap-4"
       @submit="onPasswordSubmit">
       <UFormField name="current">

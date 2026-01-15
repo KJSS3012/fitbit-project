@@ -9,13 +9,33 @@ definePageMeta({
 })
 
 const router = useRouter()
-const { user } = useAuth()
+const route = useRoute()
+const { user, isDoctor } = useAuth()
 const { exportData, isExporting } = useExport()
+const { authorizedPatients, fetchAuthorizedPatients } = useDoctorPatients()
 
 const selectedFormat = ref<ExportFormat>('pdf')
 const range = ref<Range>({
   start: startOfDay(sub(new Date(), { days: 6 })),
   end: endOfDay(new Date())
+})
+
+// Get patientId from query or use current user
+const patientId = computed(() => route.query.patientId as string || user.value?.id || '')
+
+// For doctors, patient name might be different
+const patientName = computed(() => {
+  if (isDoctor.value && route.query.patientId) {
+    const patient = authorizedPatients.value.find(p => p.cpf === route.query.patientId)
+    return patient?.name || 'Paciente'
+  }
+  return user.value?.name || 'Paciente'
+})
+
+onMounted(async () => {
+  if (isDoctor.value) {
+    await fetchAuthorizedPatients()
+  }
 })
 
 const formatTabs = [
@@ -47,11 +67,16 @@ const handleExport = async () => {
     format: selectedFormat.value,
     startDate: range.value.start,
     endDate: range.value.end,
-    patientId: user.value?.id || ''
+    patientId: patientId.value,
+    patientName: patientName.value
   })
 
   if (!isExporting.value) {
-    router.push('/dashboard/main')
+    if (isDoctor.value) {
+      router.back()
+    } else {
+      router.push('/dashboard/main')
+    }
   }
 }
 

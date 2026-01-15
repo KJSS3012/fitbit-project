@@ -3,6 +3,7 @@ import { sub, startOfDay, endOfDay, format, parseISO, isWithinInterval } from 'd
 import type { Period } from '~/types/dashboard'
 import MedicalNoteList from '~/components/shared/MedicalNoteList.vue'
 import fitbitMockData from '~/assets/data/fitbit_api_mock_2025_2026.json'
+import { useFitbitData } from '~/composables/useFitbitData'
 
 definePageMeta({
   layout: 'dashboard',
@@ -13,6 +14,7 @@ const route = useRoute()
 const router = useRouter()
 const { user, isDoctor } = useAuth()
 const { fetchPatientMetrics, selectedPatientMetrics, isLoading } = useDoctorPatients()
+const { enableSimulationMode } = useFitbitData()
 
 const patientCpf = computed(() => route.params.cpf as string)
 
@@ -142,6 +144,7 @@ onMounted(async () => {
     return
   }
 
+  enableSimulationMode()
   await loadPatientData()
 })
 
