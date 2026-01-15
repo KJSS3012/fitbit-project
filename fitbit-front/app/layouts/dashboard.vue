@@ -55,7 +55,7 @@ const groups = computed(() => [{
     <UDashboardSidebar id="default" v-model:open="open" collapsible resizable class="bg-elevated/25"
       :ui="{ footer: 'lg:border-t lg:border-default' }">
       <template #header="{ collapsed }">
-        <DashboardTeamsMenu :collapsed="collapsed" :disable-dropdown="route.path.includes('/patients/')" />
+        <DashboardTeamsMenu :collapsed="collapsed" :disable-dropdown="true" />
       </template>
 
       <template #default="{ collapsed }">
