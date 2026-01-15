@@ -25,8 +25,8 @@ const profile = reactive<Partial<ProfileSchema>>({
 })
 
 const passwordSchema = z.object({
-  current: z.string().min(8, 'Deve ter pelo menos 8 caracteres'),
-  new: z.string().min(8, 'Deve ter pelo menos 8 caracteres')
+  current: z.string().min(12, 'Deve ter pelo menos 12 caracteres'),
+  new: z.string().min(12, 'Deve ter pelo menos 12 caracteres')
 })
 
 type PasswordSchema = z.output<typeof passwordSchema>
@@ -157,7 +157,8 @@ async function onPasswordSubmit() {
     </UPageCard>
   </UForm>
 
-  <UPageCard title="Senha" description="Confirme sua senha atual antes de definir uma nova." variant="subtle" class="mt-6">
+  <UPageCard title="Senha" description="Confirme sua senha atual antes de definir uma nova." variant="subtle"
+    class="mt-6">
     <UForm :schema="passwordSchema" :state="password" :validate="validatePassword" class="flex flex-col gap-4"
       @submit="onPasswordSubmit">
       <UFormField name="current">
