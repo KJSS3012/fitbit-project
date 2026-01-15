@@ -193,9 +193,10 @@ export const useFitbitData = () => {
 
 
   /**
-   * Synchronize Fitbit data for the last 7 days and persist to database
+   * Synchronize Fitbit data for the specified period and persist to database
+   * @param period - '7d' for last 7 days, '30d' for last 30 days
    */
-  const syncFitbitData = async (): Promise<boolean> => {
+  const syncFitbitData = async (period: '7d' | '30d' = '7d'): Promise<boolean> => {
     if (!isFitbitConnected.value || !token.value) {
       throw new Error('Fitbit não está conectado')
     }
@@ -211,6 +212,9 @@ export const useFitbitData = () => {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token.value}`
+        },
+        params: {
+          period
         }
       })
 
