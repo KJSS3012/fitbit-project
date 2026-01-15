@@ -46,10 +46,12 @@ const _useDashboard = () => {
       case 'day':
         break
       case 'week':
-        start.setDate(end.getDate() - 7)
+        // Inclusive 7 days: today and previous 6 days
+        start.setDate(end.getDate() - 6)
         break
       case 'month':
-        start.setMonth(end.getMonth() - 1)
+        // Inclusive 30 days: today and previous 29 days
+        start.setDate(end.getDate() - 29)
         break
       case 'custom':
         return customDateRange.value || { start: '', end: '' }
@@ -151,9 +153,11 @@ const _useDashboard = () => {
        const start = new Date()
        
        if (period === 'month') {
-         start.setMonth(end.getMonth() - 1)
+         // Inclusive 30 days: today and previous 29 days
+         start.setDate(end.getDate() - 29)
        } else {
-         start.setDate(end.getDate() - 7)
+         // Inclusive 7 days: today and previous 6 days
+         start.setDate(end.getDate() - 6)
        }
 
        customDateRange.value = {

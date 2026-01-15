@@ -21,7 +21,6 @@ def health_check(db: Session = Depends(get_db)):
             "service": "Fitbit API"
         }
     except Exception as e:
-        print(f"Health Check Failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database connection failed"

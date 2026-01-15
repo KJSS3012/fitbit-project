@@ -25,10 +25,12 @@ def get_dashboard_metrics(
         calculated_start = today
         calculated_end = today
     elif period == "weekly":
-        calculated_start = today - timedelta(days=7)
+        # Inclusive 7 days: today and previous 6 days
+        calculated_start = today - timedelta(days=6)
         calculated_end = today
     elif period == "monthly":
-        calculated_start = today - timedelta(days=30)
+        # Inclusive 30 days: today and previous 29 days
+        calculated_start = today - timedelta(days=29)
         calculated_end = today
     elif period == "custom" or (start_date and end_date):
         if not start_date or not end_date:
@@ -144,9 +146,10 @@ def get_metrics_summary(cpf: str, period: str, db: Session = None):
         Dict with aggregated statistics
     """
     # Calculate date range
-    days = 7 if period == "7d" else 30
+    # Inclusive windows: 7d = today + 6 back, 30d = today + 29 back
+    days_back = 6 if period == "7d" else 29
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=days)
+    start_date = end_date - timedelta(days=days_back)
     
     start_str = start_date.strftime("%Y-%m-%d")
     end_str = end_date.strftime("%Y-%m-%d")
