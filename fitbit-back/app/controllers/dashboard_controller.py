@@ -39,7 +39,8 @@ def read_dashboard_metrics(
     period: Optional[str] = Query(None, pattern="^(daily|weekly|monthly|custom)$"),
     start_date: Optional[str] = Query(None, description="Start date in YYYY-MM-DD format"),
     end_date: Optional[str] = Query(None, description="End date in YYYY-MM-DD format"),
-    current_user: Dict = Depends(get_current_user)
+    current_user: Dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
     Get dashboard metrics for authenticated user.
@@ -63,7 +64,8 @@ def read_dashboard_metrics(
         cpf=cpf_to_query, 
         period=period, 
         start_date=start_date, 
-        end_date=end_date
+        end_date=end_date,
+        db=db
     )
     return dashboard_data
 

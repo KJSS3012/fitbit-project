@@ -33,7 +33,6 @@ export const useFitbitData = () => {
 
   const isSimulationMode = useState('fitbit-simulation', () => false)
   const isFitbitMode = useState('fitbit-mode', () => true)
-  const realFitbitData = useState<any>('fitbit-real-data', () => null)
   const lastSyncTime = useState<Date | null>('fitbit-last-sync', () => null)
 
   // Cache for API requests (key: date, value: { data, timestamp })
@@ -68,6 +67,25 @@ export const useFitbitData = () => {
     isSimulationMode.value = true
     isFitbitMode.value = false
   }
+
+  /**
+   * Limpa cache e estado quando usuário muda
+   */
+  const clearAllData = () => {
+    requestCache.value = {}
+    pendingRequests.value = {}
+    lastSyncTime.value = null
+  }
+
+  /**
+   * Watch para limpar dados quando token muda (logout/login diferente)
+   */
+  watch(() => token.value, (newToken, oldToken) => {
+    // Se o token mudou e havia um token anterior, limpar dados
+    if (oldToken && newToken !== oldToken) {
+      clearAllData()
+    }
+  })
 
   /**
    * Legacy toggle for backward compatibility
@@ -117,7 +135,6 @@ export const useFitbitData = () => {
         }
 
         lastSyncTime.value = new Date()
-        realFitbitData.value = data
         return data
       } catch (error: any) {
         // Check for 401 token expiration
@@ -141,6 +158,38 @@ export const useFitbitData = () => {
     pendingRequests.value[date] = request
     return request
   }
+
+  /**
+   * Fetch Fitbit data for a date range using backend aggregation (for all views)
+   */
+  const fetchFitbitDataRange = async (startDate: Date, endDate: Date, period: 'daily' | 'weekly' | 'monthly' = 'daily'): Promise<any> => {
+    if (!token.value) {
+      return null
+    }
+
+    try {
+      // Use /dashboard/metrics endpoint which fetches from database
+      const data = await $fetch(`${API_BASE_URL}/dashboard/metrics`, {
+        params: {
+          period: period,
+          start_date: format(startDate, 'yyyy-MM-dd'),
+          end_date: format(endDate, 'yyyy-MM-dd')
+        },
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      })
+
+      lastSyncTime.value = new Date()
+      return data
+    } catch (error: any) {
+      if (error?.response?.status === 401 || error?.status === 401) {
+        throw new Error('Sessão expirou. Faça login novamente')
+      }
+      throw new Error('Falha ao buscar dados. Verifique sua conexão')
+    }
+  }
+
 
   /**
    * Synchronize Fitbit data and persist to database
@@ -274,18 +323,27 @@ export const useFitbitData = () => {
   const getStepsData = async (startDate: Date, endDate: Date, period: TimeFilter = 'daily') => {
     // Priority 1: Real Fitbit data (only if Fitbit mode enabled and connected)
     if (isFitbitMode.value && isFitbitConnected.value && !isSimulationMode.value) {
-      const fitbitData = await fetchFitbitData(format(endDate, 'yyyy-MM-dd'))
-      if (fitbitData?.activity?.summary?.steps) {
-        return [{
-          date: format(endDate, 'yyyy-MM-dd'),
-          value: fitbitData.activity.summary.steps
-        }]
+      // For all periods (including daily), fetch from /dashboard/metrics (database)
+      // This ensures patient and doctor always see the same data
+      try {
+        const dashboardData = await fetchFitbitDataRange(startDate, endDate, period as 'daily' | 'weekly' | 'monthly')
+        
+        if (dashboardData?.['activities-steps']) {
+          return dashboardData['activities-steps'].map((item: any) => ({
+            date: item.dateTime || '',
+            value: parseInt(item.value) || 0
+          }))
+        }
+      } catch (e) {
+        // Error fetching real data - return empty instead of falling back to mock
+        console.warn('Error fetching real data:', e)
       }
-      // Return empty if Fitbit enabled but no data yet
+      
+      // Return empty if Fitbit enabled but no data yet (no automatic fallback to mock)
       return []
     }
 
-    // Priority 2: Simulation fallback (only if simulation mode enabled)
+    // Priority 2: Simulation fallback (ONLY if explicitly enabled by user)
     if (isSimulationMode.value) {
       const filtered = filterByDateRange(mockData['activities-steps'], startDate, endDate)
       return groupByPeriod(filtered, period)
@@ -295,20 +353,27 @@ export const useFitbitData = () => {
     return []
   }
 
+
   /**
    * Obtém dados de batimentos cardíacos (Prioridade: Fitbit > Simulação)
    */
   const getHeartRateData = async (startDate: Date, endDate: Date, period: TimeFilter = 'daily') => {
     // Priority 1: Real Fitbit data (only if Fitbit mode enabled and connected)
     if (isFitbitMode.value && isFitbitConnected.value && !isSimulationMode.value) {
-      const fitbitData = await fetchFitbitData(format(endDate, 'yyyy-MM-dd'))
-      if (fitbitData?.heartrate?.['activities-heart']?.[0]?.value?.restingHeartRate) {
-        return [{
-          date: format(endDate, 'yyyy-MM-dd'),
-          value: fitbitData.heartrate['activities-heart'][0].value.restingHeartRate
-        }]
+      // For all periods, fetch from /dashboard/metrics (database)
+      try {
+        const dashboardData = await fetchFitbitDataRange(startDate, endDate, period as 'daily' | 'weekly' | 'monthly')
+        if (dashboardData?.['activities-heart']) {
+          return dashboardData['activities-heart'].map((item: any) => ({
+            date: item.dateTime || '',
+            value: item.value?.restingHeartRate || 0
+          }))
+        }
+      } catch (e) {
+        // Error fetching real data - return empty instead of falling back to mock
+        console.warn('Error fetching heart rate data:', e)
       }
-      // Return empty if Fitbit enabled but no data yet
+      // Return empty if Fitbit enabled but no data yet (no automatic fallback to mock)
       return []
     }
 
@@ -333,14 +398,20 @@ export const useFitbitData = () => {
   const getSleepData = async (startDate: Date, endDate: Date, period: TimeFilter = 'daily') => {
     // Priority 1: Real Fitbit data (only if Fitbit mode enabled and connected)
     if (isFitbitMode.value && isFitbitConnected.value && !isSimulationMode.value) {
-      const fitbitData = await fetchFitbitData(format(endDate, 'yyyy-MM-dd'))
-      if (fitbitData?.sleep?.summary?.totalMinutesAsleep) {
-        return [{
-          date: format(endDate, 'yyyy-MM-dd'),
-          value: fitbitData.sleep.summary.totalMinutesAsleep
-        }]
+      // For all periods, fetch from /dashboard/metrics (database)
+      try {
+        const dashboardData = await fetchFitbitDataRange(startDate, endDate, period as 'daily' | 'weekly' | 'monthly')
+        if (dashboardData?.sleep) {
+          return dashboardData.sleep.map((item: any) => ({
+            date: item.dateOfSleep || '',
+            value: item.minutesAsleep || 0
+          }))
+        }
+      } catch (e) {
+        // Error fetching real data - return empty instead of falling back to mock
+        console.warn('Error fetching sleep data:', e)
       }
-      // Return empty if Fitbit enabled but no data yet
+      // Return empty if Fitbit enabled but no data yet (no automatic fallback to mock)
       return []
     }
 
@@ -372,12 +443,17 @@ export const useFitbitData = () => {
   const getCaloriesData = async (startDate: Date, endDate: Date, period: TimeFilter = 'daily') => {
     // Priority 1: Real Fitbit data (only if Fitbit mode enabled and connected)
     if (isFitbitMode.value && isFitbitConnected.value && !isSimulationMode.value) {
-      const fitbitData = await fetchFitbitData(format(endDate, 'yyyy-MM-dd'))
-      if (fitbitData?.activity?.summary?.caloriesOut) {
-        return [{
-          date: format(endDate, 'yyyy-MM-dd'),
-          value: fitbitData.activity.summary.caloriesOut
-        }]
+      if (period === 'daily') {
+        const fitbitData = await fetchFitbitData(format(endDate, 'yyyy-MM-dd'))
+        if (fitbitData?.activity?.summary?.caloriesOut) {
+          return [{
+            date: format(endDate, 'yyyy-MM-dd'),
+            value: fitbitData.activity.summary.caloriesOut
+          }]
+        }
+      } else {
+        // For weekly/monthly, return empty for calories (Fitbit API doesn't provide aggregated calories)
+        return []
       }
       // Return empty if Fitbit enabled but no data yet
       return []
@@ -394,14 +470,14 @@ export const useFitbitData = () => {
   }
 
   /**
-   * Obtém estatísticas resumidas
+   * Obtém estatísticas resumidas com período especificado
    */
-  const getStats = async (startDate: Date, endDate: Date) => {
+  const getStats = async (startDate: Date, endDate: Date, period: TimeFilter = 'daily') => {
     const [stepsData, heartData, sleepData, caloriesData] = await Promise.all([
-      getStepsData(startDate, endDate, 'daily'),
-      getHeartRateData(startDate, endDate, 'daily'),
-      getSleepData(startDate, endDate, 'daily'),
-      getCaloriesData(startDate, endDate, 'daily')
+      getStepsData(startDate, endDate, period),
+      getHeartRateData(startDate, endDate, period),
+      getSleepData(startDate, endDate, period),
+      getCaloriesData(startDate, endDate, period)
     ])
 
     return {
@@ -511,6 +587,7 @@ export const useFitbitData = () => {
     enableSimulationMode,
     toggleSimulation,
     fetchFitbitData,
+    fetchFitbitDataRange,
     syncFitbitData,
     getStepsData,
     getHeartRateData,

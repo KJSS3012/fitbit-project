@@ -15,7 +15,8 @@ def get_dashboard_metrics(
     cpf: str, 
     period: Optional[str] = None, 
     start_date: Optional[str] = None, 
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    db: Optional[Session] = None
 ):
     today = datetime.now()
     
@@ -53,16 +54,28 @@ def get_dashboard_metrics(
     start_str = calculated_start.strftime("%Y-%m-%d")
     end_str = calculated_end.strftime("%Y-%m-%d")
 
-    user = next((p for p in FAKE_PATIENTS_DB if p.get("cpf") == cpf), None)
-    
-    if user and user.get("fitbit_access_token"):
-        token = get_valid_token(cpf)
-        raw_data = fetch_fitbit_data(token, start_str, end_str)
+    # If DB session provided, fetch from patient_metrics table (real data)
+    if db:
+        patient_repo = PatientRepository(db)
+        raw_data_list = patient_repo.get_metrics(cpf, start_str, end_str)
+        
+        if not raw_data_list:
+            return {"activities-steps": [], "activities-heart": [], "sleep": []}
+        
+        # Transform database records to the expected format
+        raw_data = [
+            {
+                "date": str(m.date),
+                "steps": m.steps or 0,
+                "bpm": int(m.hr_avg) if m.hr_avg else 0,
+                "sleep_hours": m.sleep_hours or 0.0,
+                "calories": m.calories or 0
+            }
+            for m in raw_data_list
+        ]
     else:
-        try:
-            raw_data = get_cached_data(cpf, start_str, end_str)
-        except AttributeError:
-            raise HTTPException(status_code=500, detail="Model method not implemented")
+        # No DB session provided - return empty (no fallback to mock data)
+        return {"activities-steps": [], "activities-heart": [], "sleep": []}
 
     # Validate minimum data volume
     validate_data_volume(raw_data, period)
@@ -87,11 +100,9 @@ def get_dashboard_metrics(
     }
 
 def validate_data_volume(records: list, period: str):
-    if period == "monthly" and len(records) < 7:
-        raise HTTPException(
-            status_code=400, 
-            detail="Dados insuficientes para visualização mensal. São necessários pelo menos 7 registros."
-        )
+    # Removed strict validation - return whatever data is available
+    # Users may have less than 7 records initially, which is fine
+    pass
     
 def aggregate_metrics(records: list, period: str):
     if period != "monthly" or len(records) <= 7:

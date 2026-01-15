@@ -20,9 +20,15 @@ type DataRecord = {
 
 const { width } = useElementSize(cardRef)
 
+// Parse date string as local date to avoid timezone issues
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 const chartData = computed<DataRecord[]>(() => {
   return props.data.map(item => ({
-    date: new Date(item.date),
+    date: parseLocalDate(item.date),
     hours: Math.floor(item.value / 60),
     minutes: item.value % 60
   }))

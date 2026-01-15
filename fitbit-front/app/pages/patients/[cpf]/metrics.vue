@@ -132,7 +132,7 @@ const currentDateRange = computed(() => {
 
 const range = computed(() => ({
   start: startOfDay(new Date(currentDateRange.value.start)),
-  end: endOfDay(new Date(currentDateRange.value.end))
+  end: startOfDay(new Date(currentDateRange.value.end))
 }))
 
 // Fetch data on mount
@@ -196,10 +196,15 @@ const validateCustomRange = (start: string, end: string): boolean => {
     return false
   }
 
-  const startDt = new Date(start)
-  const endDt = new Date(end)
+  // Parse as local dates to avoid timezone issues
+  const [startY, startM, startD] = start.split('-').map(Number)
+  const [endY, endM, endD] = end.split('-').map(Number)
+  const startDt = new Date(startY, startM - 1, startD)
+  const endDt = new Date(endY, endM - 1, endD)
+  
+  // Today at midnight local time
   const today = new Date()
-  today.setHours(23, 59, 59, 999)
+  today.setHours(0, 0, 0, 0)
 
   if (startDt > endDt) {
     toast.add({
@@ -263,9 +268,13 @@ const applyCustomRange = () => {
     return
   }
 
+  // Parse as local dates to avoid timezone issues
+  const [startY, startM, startD] = customStartDate.value.split('-').map(Number)
+  const [endY, endM, endD] = customEndDate.value.split('-').map(Number)
+  
   customRange.value = {
-    start: new Date(customStartDate.value),
-    end: new Date(customEndDate.value)
+    start: new Date(startY, startM - 1, startD),
+    end: new Date(endY, endM - 1, endD)
   }
 
   selectedPeriod.value = 'custom'
