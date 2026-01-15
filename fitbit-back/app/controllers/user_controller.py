@@ -237,7 +237,7 @@ def get_patient_health_metrics(
         end_date = datetime.now().date().isoformat()
         start_date = (datetime.now() - timedelta(days=7)).date().isoformat()
     
-    # Get metrics
+    # Get metrics from database only - no mock data for doctors
     metrics = patient_repo.get_metrics(cpf, start_date, end_date)
     
     # Calculate last sync and outdated flag

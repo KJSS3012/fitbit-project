@@ -183,6 +183,74 @@ def callback(
     if not patient:
         return RedirectResponse(f"{frontend_url}?fitbit=error")
 
+    # Automatically sync Fitbit data for the last 7 days after successful connection
+    try:
+        from datetime import timedelta, datetime
+        end_date = date.today().isoformat()
+        start_date = (date.today() - timedelta(days=7)).isoformat()
+        
+        # Sync data for each day in the range
+        current_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        end_datetime = datetime.strptime(end_date, "%Y-%m-%d").date()
+        
+        while current_date <= end_datetime:
+            try:
+                # Fetch and save data for this day
+                activity_data = fitbit_get(
+                    f"{FITBIT_API_BASE_URL}/activities/date/{current_date.isoformat()}.json", 
+                    target_cpf, 
+                    db
+                )
+                heartrate_data = fitbit_get(
+                    f"{FITBIT_API_BASE_URL}/activities/heart/date/{current_date.isoformat()}/1d.json", 
+                    target_cpf, 
+                    db
+                )
+                sleep_data = fitbit_get(
+                    f"{FITBIT_API_BASE_URL}/sleep/date/{current_date.isoformat()}.json", 
+                    target_cpf, 
+                    db
+                )
+
+                # Extract metrics
+                steps = activity_data.get("summary", {}).get("steps", 0)
+                calories = activity_data.get("summary", {}).get("caloriesOut", 0)
+                
+                hr_list = heartrate_data.get("activities-heart", [])
+                hr_avg = 0
+                if hr_list and len(hr_list) > 0:
+                    hr_avg = hr_list[0].get("value", {}).get("restingHeartRate", 0)
+                
+                sleep_summary = sleep_data.get("summary", {})
+                sleep_minutes = sleep_summary.get("totalMinutesAsleep", 0)
+                sleep_hours = round(sleep_minutes / 60, 2) if sleep_minutes else 0.0
+
+                # Save metrics
+                metrics_list = [{
+                    "date": current_date.isoformat(),
+                    "steps": steps,
+                    "hr_avg": hr_avg,
+                    "sleep_hours": sleep_hours,
+                    "calories": calories,
+                    "source": "fitbit"
+                }]
+                
+                patient_repo.save_metrics(target_cpf, metrics_list)
+                
+            except Exception as e:
+                # Continue with next day even if this one fails
+                pass
+            
+            current_date += timedelta(days=1)
+        
+        # Clear cache after sync
+        from app.services.dashboard_service import get_cached_data
+        get_cached_data.cache_clear()
+        
+    except Exception as e:
+        # Don't return error - connection was successful, sync is just a bonus
+        pass
+
     return RedirectResponse("http://localhost:3000/dashboard/main?fitbit=connected")
 
 
@@ -195,19 +263,14 @@ def fitbit_status(
     db: Session = Depends(get_db)
 ):
     """Check if user has connected Fitbit account."""
-    print(f"[DEBUG] fitbit_status called for CPF: {cpf}")
     patient_repo = PatientRepository(db)
     patient = patient_repo.find_by_cpf(cpf)
     
     if not patient:
-        print(f"[DEBUG] Patient with CPF {cpf} not found in database")
         return {"connected": False}
     
     if not patient.fitbit_access_token:
-        print(f"[DEBUG] Patient {cpf} found but no Fitbit token")
         return {"connected": False}
-    
-    print(f"[DEBUG] Patient {cpf} is connected to Fitbit")
     return {
         "connected": True,
         "scopes": ["activity", "heartrate", "sleep", "profile"]
@@ -220,15 +283,11 @@ def disconnect_fitbit(
     db: Session = Depends(get_db)
 ):
     """Disconnect Fitbit account by removing tokens."""
-    print(f"[DEBUG] disconnect_fitbit called for CPF: {cpf}")
     patient_repo = PatientRepository(db)
     patient = patient_repo.remove_fitbit_tokens(cpf)
     
     if not patient:
-        print(f"[DEBUG] Patient {cpf} not found")
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    
-    print(f"[DEBUG] Patient {cpf} disconnected successfully")
     return {"message": "Fitbit desconectado com sucesso"}
 
 

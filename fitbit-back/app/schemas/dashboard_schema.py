@@ -20,11 +20,16 @@ class SleepRecord(BaseModel):
     dateOfSleep: str
     minutesAsleep: int
 
+class CaloriesRecord(BaseModel):
+    dateTime: str
+    value: str
+
 class DashboardResponse(BaseModel):
     # Standard Fitbit aliases
     activities_steps: List[StepRecord] = Field(..., alias="activities-steps")
     activities_heart: List[HeartRateRecord] = Field(..., alias="activities-heart")
     sleep: List[SleepRecord]
+    activities_calories: List[CaloriesRecord] = Field([], alias="activities-calories")
 
     # Pydantic V2 modern configuration
     model_config = ConfigDict(

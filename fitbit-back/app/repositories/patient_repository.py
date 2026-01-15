@@ -125,7 +125,8 @@ class PatientRepository:
         if end_date:
             query = query.filter(PatientMetrics.date <= end_date)
         
-        return query.order_by(PatientMetrics.date.desc()).all()
+        results = query.order_by(PatientMetrics.date.desc()).all()
+        return results
 
         self.db.commit()
         self.db.refresh(patient)

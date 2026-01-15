@@ -115,7 +115,7 @@ const refreshData = async () => {
       getHeartRateData(start, end, p),
       getSleepData(start, end, p),
       getCaloriesData(start, end, p),
-      getStats(start, end)
+      getStats(start, end, p)
     ])
 
     stepsData.value = steps
@@ -149,6 +149,10 @@ const handleSyncNow = async () => {
 onMounted(async () => {
   await fetchUser()
   await checkFitbitStatus()
+  
+  // Ensure reactive state is settled before loading data
+  await nextTick()
+  
   await refreshData()
 
   // Check for stale sleep data on mount
@@ -160,6 +164,23 @@ onMounted(async () => {
 // Refresh when period or mode changes
 watch([selectedPeriod, isFitbitMode, isSimulationMode, customDateRange], () => {
   refreshData()
+})
+
+// Clear data when user changes (e.g., logout then login as different user)
+watch(() => user.value?.cpf, (newCpf, oldCpf) => {
+  if (newCpf && oldCpf && newCpf !== oldCpf) {
+    // User has changed - clear all cached data
+    stepsData.value = []
+    heartRateData.value = []
+    sleepData.value = []
+    caloriesData.value = []
+    stats.value = {
+      steps: { total: 0, average: 0, max: 0 },
+      heartRate: { average: 0, min: 0, max: 0 },
+      sleep: { totalHours: 0, averageHours: '0' },
+      calories: { total: 0, average: 0 }
+    }
+  }
 })
 
 const hasData = computed(() =>

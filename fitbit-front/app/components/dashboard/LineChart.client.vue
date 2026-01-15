@@ -42,10 +42,16 @@ const props = withDefaults(defineProps<Props>(), {
 
 const colorMode = useColorMode()
 
+// Parse date string as local date to avoid timezone issues
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 const chartData = computed(() => ({
   labels: props.data.map(item => {
     try {
-      return format(new Date(item.date), 'dd/MM', { locale: ptBR })
+      return format(parseLocalDate(item.date), 'dd/MM', { locale: ptBR })
     } catch {
       return item.date
     }
