@@ -176,7 +176,7 @@ def test_update_user_password_patient(test_patient, mock_patient_user):
     
     response = client.patch(
         "/user/me",
-        json={"password": new_password}
+        json={"current_password": "senha123456789", "new_password": new_password}
     )
     
     assert response.status_code == 200
@@ -189,7 +189,7 @@ def test_update_user_password_too_short(test_patient, mock_patient_user):
     """Test PATCH /user/me - password too short"""
     response = client.patch(
         "/user/me",
-        json={"password": "short"}
+        json={"current_password": "senha123456789", "new_password": "short"}
     )
     
     assert response.status_code == 400
@@ -202,7 +202,8 @@ def test_update_user_both_fields(test_patient, mock_patient_user):
         "/user/me",
         json={
             "name": "Novo Nome",
-            "password": "novasenha123456"
+            "current_password": "senha123456789",
+            "new_password": "novasenha123456"
         }
     )
     

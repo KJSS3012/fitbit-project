@@ -9,7 +9,7 @@ from app.api.dependencies import get_current_user
 from app.models.patient import Patient
 from app.models.doctor import Doctor
 from app.models.patient_metrics import PatientMetrics
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 from app.repositories.authorization_repository import AuthorizationRepository
 from app.repositories.patient_repository import PatientRepository
 from app.repositories.doctor_repository import DoctorRepository
@@ -25,7 +25,8 @@ class UserResponse(BaseModel):
 
 class UserUpdateRequest(BaseModel):
     name: Optional[str] = None
-    password: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
 
 
 class PatientMetricResponse(BaseModel):
@@ -112,13 +113,23 @@ def update_current_user(
     if updates.name:
         user.name = updates.name
     
-    if updates.password:
-        if len(updates.password) < 12:
+    if updates.new_password:
+        if not updates.current_password:
             raise HTTPException(
                 status_code=400,
-                detail="Senha deve ter pelo menos 12 caracteres"
+                detail="Senha atual é obrigatória para alterar a senha"
             )
-        user.password = get_password_hash(updates.password)
+        if not verify_password(updates.current_password, user.password):
+            raise HTTPException(
+                status_code=400,
+                detail="Senha atual incorreta"
+            )
+        if len(updates.new_password) < 12:
+            raise HTTPException(
+                status_code=400,
+                detail="Nova senha deve ter pelo menos 12 caracteres"
+            )
+        user.password = get_password_hash(updates.new_password)
     
     db.commit()
     db.refresh(user)
