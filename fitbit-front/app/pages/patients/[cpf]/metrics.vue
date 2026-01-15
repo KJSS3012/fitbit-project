@@ -28,11 +28,11 @@ const customEndDate = ref('')
 const toast = useToast()
 const isNoteModalOpen = ref(false)
 
-// Mock patient data
+// Patient data from backend (not mock anymore)
 const mockPatientData = ref({
-  patient_name: 'João Silva',
+  patient_name: '',
   patient_cpf: patientCpf.value,
-  last_sync: 'há 2 horas',
+  last_sync: '',
   is_data_outdated: false,
   metrics: [] as any[]
 })
@@ -149,25 +149,22 @@ const loadPatientData = async () => {
   isLoading.value = true
 
   try {
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
-
     const startDate = format(range.value.start, 'yyyy-MM-dd')
     const endDate = format(range.value.end, 'yyyy-MM-dd')
 
-    // Get mock data for the selected range
-    const mockMetrics = getMockDataForRange(range.value.start, range.value.end)
+    // Fetch real patient data from backend
+    const realData = await fetchPatientMetrics(patientCpf.value, startDate, endDate)
 
-    mockPatientData.value = {
-      patient_name: 'João Silva',
-      patient_cpf: patientCpf.value,
-      last_sync: 'há 2 horas',
-      is_data_outdated: false,
-      metrics: mockMetrics
+    // If backend doesn't return metrics, use mock data
+    if (!realData?.metrics || realData.metrics.length === 0) {
+      const mockMetrics = getMockDataForRange(range.value.start, range.value.end)
+      realData.metrics = mockMetrics
     }
 
+    mockPatientData.value = realData
+
     // Update the composable data
-    selectedPatientMetrics.value = mockPatientData.value
+    selectedPatientMetrics.value = realData
 
   } catch (error: any) {
     console.error('Failed to load patient data:', error)
