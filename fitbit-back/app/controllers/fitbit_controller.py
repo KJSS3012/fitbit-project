@@ -357,80 +357,106 @@ def dashboard(
 
 @router.post("/sync")
 def sync_fitbit_data(
-    day: str = date.today().isoformat(),
     cpf: str = Depends(get_cpf_from_header),
     db: Session = Depends(get_db)
 ):
-    """Synchronize Fitbit data and persist to database.
+    """Synchronize Fitbit data for the last 7 days and persist to database.
     
-    Fetches activity, heart rate, and sleep data from Fitbit API,
-    then saves metrics to the database.
+    Fetches activity, heart rate, and sleep data from Fitbit API for each of
+    the last 7 days, then saves metrics to the database.
     
     Returns:
-        dict: Success status, synced data, and last sync timestamp
+        dict: Success status, synced data summary, and last sync timestamp
     """
-    try:
-        # Fetch data from Fitbit API in parallel-like approach
-        activity_data = fitbit_get(
-            f"{FITBIT_API_BASE_URL}/activities/date/{day}.json", cpf, db
-        )
-        heartrate_data = fitbit_get(
-            f"{FITBIT_API_BASE_URL}/activities/heart/date/{day}/1d.json", cpf, db
-        )
-        sleep_data = fitbit_get(
-            f"{FITBIT_API_BASE_URL}/sleep/date/{day}.json", cpf, db
-        )
-
-        # Extract metrics from Fitbit response
-        steps = activity_data.get("summary", {}).get("steps", 0)
-        calories = activity_data.get("summary", {}).get("caloriesOut", 0)
+    from datetime import timedelta, datetime
         
-        hr_list = heartrate_data.get("activities-heart", [])
-        hr_avg = 0
-        if hr_list and len(hr_list) > 0:
-            hr_avg = hr_list[0].get("value", {}).get("restingHeartRate", 0)
+    # Calculate date range: last 7 days
+    end_date = date.today()
+    start_date = end_date - timedelta(days=6)  # Today + 6 days back = 7 days total
         
-        sleep_summary = sleep_data.get("summary", {})
-        sleep_minutes = sleep_summary.get("totalMinutesAsleep", 0)
-        sleep_hours = round(sleep_minutes / 60, 2) if sleep_minutes else 0.0
-
-        # Prepare metrics for database
-        metrics_list = [{
-            "date": day,
-            "steps": steps,
-            "hr_avg": hr_avg,
-            "sleep_hours": sleep_hours,
-            "calories": calories,
-            "source": "fitbit"
-        }]
-
-        # Save to database
-        patient_repo = PatientRepository(db)
-        saved_metrics = patient_repo.save_metrics(cpf, metrics_list)
+    patient_repo = PatientRepository(db)
+    all_synced_data = []
+    total_saved = 0
         
-        # Invalidate cache after successful sync
-        get_cached_data.cache_clear()
+    # Iterate through each day in the range
+    current_date = start_date
+    while current_date <= end_date:
+        day_str = current_date.isoformat()
+            
+        try:
+            # Fetch data from Fitbit API for this day
+            # Note: fitbit_get will raise HTTPException if Fitbit not connected or token expired
+            activity_data = fitbit_get(
+                f"{FITBIT_API_BASE_URL}/activities/date/{day_str}.json", cpf, db
+            )
+            heartrate_data = fitbit_get(
+                f"{FITBIT_API_BASE_URL}/activities/heart/date/{day_str}/1d.json", cpf, db
+            )
+            sleep_data = fitbit_get(
+                f"{FITBIT_API_BASE_URL}/sleep/date/{day_str}.json", cpf, db
+            )
 
-        return {
-            "success": True,
-            "message": "Dados sincronizados com sucesso",
-            "last_sync": date.today().isoformat(),
-            "data": {
-                "date": day,
+            # Extract metrics from Fitbit response
+            steps = activity_data.get("summary", {}).get("steps", 0)
+            calories = activity_data.get("summary", {}).get("caloriesOut", 0)
+            
+            hr_list = heartrate_data.get("activities-heart", [])
+            hr_avg = 0
+            if hr_list and len(hr_list) > 0:
+                hr_avg = hr_list[0].get("value", {}).get("restingHeartRate", 0)
+            
+            sleep_summary = sleep_data.get("summary", {})
+            sleep_minutes = sleep_summary.get("totalMinutesAsleep", 0)
+            sleep_hours = round(sleep_minutes / 60, 2) if sleep_minutes else 0.0
+
+            # Prepare metrics for database
+            metrics_list = [{
+                "date": day_str,
+                "steps": steps,
+                "hr_avg": hr_avg,
+                "sleep_hours": sleep_hours,
+                "calories": calories,
+                "source": "fitbit"
+            }]
+
+            # Save to database
+            saved_metrics = patient_repo.save_metrics(cpf, metrics_list)
+            total_saved += len(saved_metrics)
+            
+            # Add to synced data list
+            all_synced_data.append({
+                "date": day_str,
                 "steps": steps,
                 "hr_avg": hr_avg,
                 "sleep_hours": sleep_hours,
                 "calories": calories
-            },
-            "metrics_saved": len(saved_metrics)
-        }
+            })
+            
+        except HTTPException as e:
+            # Re-raise HTTP exceptions immediately (like 401 Fitbit not connected)
+            raise e
+        except Exception as e:
+            # Continue with next day for non-critical errors
+            # Add placeholder data for failed day
+            all_synced_data.append({
+                "date": day_str,
+                "error": str(e)
+            })
+        
+        current_date += timedelta(days=1)
+    
+    # Invalidate cache after successful sync
+    get_cached_data.cache_clear()
 
-    except HTTPException as e:
-        # Re-raise HTTP exceptions (like 401 Fitbit not connected)
-        raise e
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Falha ao sincronizar dados: {str(e)}"
-        )
+    return {
+        "success": True,
+        "message": f"Dados sincronizados com sucesso para {len(all_synced_data)} dias",
+        "last_sync": date.today().isoformat(),
+        "date_range": {
+            "start": start_date.isoformat(),
+            "end": end_date.isoformat()
+        },
+        "data": all_synced_data,
+        "metrics_saved": total_saved
+    }
 
