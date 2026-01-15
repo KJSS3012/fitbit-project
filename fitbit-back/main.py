@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import logging
 
 from app.controllers.auth_controller import router as auth_router
 from app.controllers.fitbit_controller import router as fitbit_router
@@ -11,6 +12,10 @@ from app.controllers.notes_controller import router as notes_router
 from app.controllers.health_controller import router as health_router
 
 from app.database.connection import Base, engine
+
+# Desabilitar logs de acesso do uvicorn
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.access").disabled = True
 
 app = FastAPI()
 
