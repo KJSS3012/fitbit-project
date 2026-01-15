@@ -20,22 +20,8 @@ def get_dashboard_metrics(
 ):
     today = datetime.now()
     
-    # Date calculation logic
-    if period == "daily":
-        calculated_start = today
-        calculated_end = today
-    elif period == "weekly":
-        # Inclusive 7 days: today and previous 6 days
-        calculated_start = today - timedelta(days=6)
-        calculated_end = today
-    elif period == "monthly":
-        # Inclusive 30 days: today and previous 29 days
-        calculated_start = today - timedelta(days=29)
-        calculated_end = today
-    elif period == "custom" or (start_date and end_date):
-        if not start_date or not end_date:
-            raise HTTPException(status_code=400, detail="Data inicial e final são obrigatórias para o período customizado.")
-        
+    # Priority 1: If start_date and end_date are explicitly provided, use them
+    if start_date and end_date:
         try:
             calculated_start = datetime.strptime(start_date, "%Y-%m-%d")
             calculated_end = datetime.strptime(end_date, "%Y-%m-%d")
@@ -50,6 +36,21 @@ def get_dashboard_metrics(
 
         if (calculated_end - calculated_start).days > 365:
             raise HTTPException(status_code=400, detail="O período customizado não pode exceder 365 dias.")
+    
+    # Priority 2: Calculate from period if no explicit dates provided
+    elif period == "daily":
+        calculated_start = today
+        calculated_end = today
+    elif period == "weekly":
+        # Inclusive 7 days: today and previous 6 days
+        calculated_start = today - timedelta(days=6)
+        calculated_end = today
+    elif period == "monthly":
+        # Inclusive 30 days: today and previous 29 days
+        calculated_start = today - timedelta(days=29)
+        calculated_end = today
+    elif period == "custom":
+        raise HTTPException(status_code=400, detail="Data inicial e final são obrigatórias para o período customizado.")
     else:
         raise HTTPException(status_code=400, detail="Período inválido ou datas ausentes.")
 

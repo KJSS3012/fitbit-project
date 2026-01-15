@@ -193,9 +193,10 @@ export const useFitbitData = () => {
 
 
   /**
-   * Synchronize Fitbit data and persist to database
+   * Synchronize Fitbit data for the specified period and persist to database
+   * @param period - '7d' for last 7 days, '30d' for last 30 days
    */
-  const syncFitbitData = async (date: string = format(new Date(), 'yyyy-MM-dd')): Promise<boolean> => {
+  const syncFitbitData = async (period: '7d' | '30d' = '7d'): Promise<boolean> => {
     if (!isFitbitConnected.value || !token.value) {
       throw new Error('Fitbit não está conectado')
     }
@@ -209,22 +210,24 @@ export const useFitbitData = () => {
         data: any
       }>(`${API_BASE_URL}/fitbit/sync`, {
         method: 'POST',
-        params: { day: date },
         headers: {
           Authorization: `Bearer ${token.value}`
+        },
+        params: {
+          period
         }
       })
 
       // Update last sync time
       lastSyncTime.value = new Date()
 
-      // Clear cache to force refresh
-      delete requestCache.value[date]
+      // Clear all cached data to force refresh
+      requestCache.value = {}
 
       // Show success toast
       toast.add({
         title: 'Sincronização completa',
-        description: 'Dados atualizados com sucesso',
+        description: response.message || 'Dados dos últimos 7 dias atualizados',
         color: 'success',
         icon: 'i-heroicons-check-circle'
       })

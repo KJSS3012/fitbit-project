@@ -36,7 +36,7 @@ class TestFitbitSync:
     def test_sync_success_saves_to_database(self, mock_save_metrics, mock_find_cpf, mock_get):
         """DADO Fitbit conectado
         QUANDO POST /fitbit/sync
-        ENTÃO busca dados Fitbit E salva no BD E retorna sucesso"""
+        ENTÃO busca dados Fitbit dos últimos 7 dias E salva no BD E retorna sucesso"""
         
         # Mock patient with valid token
         mock_patient = Mock(spec=Patient)
@@ -45,39 +45,38 @@ class TestFitbitSync:
         mock_patient.fitbit_refresh_token = "refresh_token"
         mock_find_cpf.return_value = mock_patient
         
-        # Mock Fitbit API responses
-        mock_get.side_effect = [
-            # Activity response
-            Mock(status_code=200, json=lambda: {"summary": {"steps": 10000, "caloriesOut": 2500}}),
-            # Heartrate response
-            Mock(status_code=200, json=lambda: {"activities-heart": [{"value": {"restingHeartRate": 72}}]}),
-            # Sleep response
-            Mock(status_code=200, json=lambda: {"summary": {"totalMinutesAsleep": 420}})
-        ]
+        # Mock Fitbit API responses for 7 days (3 calls per day: activity, heart, sleep)
+        api_responses = []
+        for day in range(7):
+            api_responses.extend([
+                # Activity response
+                Mock(status_code=200, json=lambda d=day: {"summary": {"steps": 10000 + d * 100, "caloriesOut": 2500}}),
+                # Heartrate response
+                Mock(status_code=200, json=lambda: {"activities-heart": [{"value": {"restingHeartRate": 72}}]}),
+                # Sleep response
+                Mock(status_code=200, json=lambda: {"summary": {"totalMinutesAsleep": 420}})
+            ])
         
-        # Mock save_metrics
+        mock_get.side_effect = api_responses
+        
+        # Mock save_metrics to return list for each call
         mock_metric = Mock(spec=PatientMetrics)
         mock_save_metrics.return_value = [mock_metric]
         
-        response = client.post("/fitbit/sync?day=2026-01-10")
+        response = client.post("/fitbit/sync")
         
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
-        assert data["message"] == "Dados sincronizados com sucesso"
-        assert data["data"]["steps"] == 10000
-        assert data["data"]["hr_avg"] == 72
-        assert data["data"]["sleep_hours"] == 7.0
-        assert data["data"]["calories"] == 2500
-        assert data["metrics_saved"] == 1
+        assert "7 dias" in data["message"]
+        assert "date_range" in data
+        assert "start" in data["date_range"]
+        assert "end" in data["date_range"]
+        assert len(data["data"]) == 7  # Should have 7 days of data
+        assert data["metrics_saved"] == 7  # Should have saved 7 metrics
         
-        # Verify save_metrics was called
-        mock_save_metrics.assert_called_once()
-        call_args = mock_save_metrics.call_args
-        assert call_args[0][0] == "12345678901"  # cpf
-        assert len(call_args[0][1]) == 1  # metrics_list
-        assert call_args[0][1][0]["date"] == "2026-01-10"
-        assert call_args[0][1][0]["steps"] == 10000
+        # Verify save_metrics was called 7 times (once per day)
+        assert mock_save_metrics.call_count == 7
 
     @patch('app.repositories.patient_repository.PatientRepository.find_by_cpf')
     def test_sync_fitbit_not_connected_401(self, mock_find_cpf):
@@ -103,7 +102,7 @@ class TestFitbitSync:
     def test_sync_token_expired_401_with_refresh(self, mock_save, mock_update_tokens, mock_find_cpf, mock_post, mock_get):
         """DADO token expirado
         QUANDO POST /fitbit/sync
-        ENTÃO faz refresh do token E retenta E salva dados"""
+        ENTÃO faz refresh do token E retenta E salva dados dos 7 dias"""
         
         # Mock patient with expired token
         mock_patient = Mock(spec=Patient)
@@ -117,7 +116,8 @@ class TestFitbitSync:
         mock_patient_refreshed.fitbit_access_token = "new_token"
         mock_patient_refreshed.fitbit_refresh_token = "refresh_token"
         
-        mock_find_cpf.side_effect = [mock_patient, mock_patient_refreshed, mock_patient_refreshed, mock_patient_refreshed]
+        # Multiple calls to find_by_cpf for 7 days of syncing
+        mock_find_cpf.side_effect = [mock_patient] + [mock_patient_refreshed] * 21  # 1 initial + 3 calls per day * 7 days
         
         # Mock refresh token success
         mock_post.return_value = Mock(
@@ -127,17 +127,19 @@ class TestFitbitSync:
         
         mock_update_tokens.return_value = mock_patient_refreshed
         
-        # First call returns 401 (expired), second call succeeds with new token
-        mock_get.side_effect = [
-            Mock(status_code=401),  # Expired token
-            # After refresh - activity
-            Mock(status_code=200, json=lambda: {"summary": {"steps": 8000, "caloriesOut": 2000}}),
-            # Heartrate
-            Mock(status_code=200, json=lambda: {"activities-heart": [{"value": {"restingHeartRate": 70}}]}),
-            # Sleep
-            Mock(status_code=200, json=lambda: {"summary": {"totalMinutesAsleep": 400}})
-        ]
+        # First call returns 401 (expired), then 7 days of successful calls (3 per day)
+        api_responses = [Mock(status_code=401)]  # Expired token
+        for day in range(7):
+            api_responses.extend([
+                # Activity
+                Mock(status_code=200, json=lambda: {"summary": {"steps": 8000, "caloriesOut": 2000}}),
+                # Heartrate
+                Mock(status_code=200, json=lambda: {"activities-heart": [{"value": {"restingHeartRate": 70}}]}),
+                # Sleep
+                Mock(status_code=200, json=lambda: {"summary": {"totalMinutesAsleep": 400}})
+            ])
         
+        mock_get.side_effect = api_responses
         mock_save.return_value = [Mock(spec=PatientMetrics)]
         
         response = client.post("/fitbit/sync")
@@ -145,10 +147,13 @@ class TestFitbitSync:
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
+        assert len(data["data"]) == 7  # 7 days of data
         
         # Verify refresh was attempted
         mock_post.assert_called_once()
         mock_update_tokens.assert_called_once()
+        # Verify save was called 7 times (once per day)
+        assert mock_save.call_count == 7
 
     @patch('app.controllers.fitbit_controller.requests.get')
     @patch('app.controllers.fitbit_controller.requests.post')
@@ -179,9 +184,9 @@ class TestFitbitSync:
     @patch('app.controllers.fitbit_controller.requests.get')
     @patch('app.repositories.patient_repository.PatientRepository.find_by_cpf')
     def test_sync_network_error_500(self, mock_find_cpf, mock_get):
-        """DADO erro de rede no Fitbit
+        """DADO erro de rede no Fitbit para todos os dias
         QUANDO POST /fitbit/sync
-        ENTÃO retorna 500 'Falha ao sincronizar dados'"""
+        ENTÃO retorna 200 com dados marcados com erro (comportamento resiliente)"""
         
         mock_patient = Mock(spec=Patient)
         mock_patient.cpf = "12345678901"
@@ -193,5 +198,13 @@ class TestFitbitSync:
         
         response = client.post("/fitbit/sync")
         
-        assert response.status_code == 500
-        assert "Falha ao sincronizar" in response.json()["detail"]
+        # Should still return 200 but with errors in data
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        # All 7 days should have error markers
+        assert len(data["data"]) == 7
+        # Check that errors are recorded
+        errors_count = sum(1 for d in data["data"] if "error" in d)
+        assert errors_count == 7
+        assert data["metrics_saved"] == 0  # No metrics saved due to errors
