@@ -1,3 +1,4 @@
+import { watch } from 'vue'
 import mockData from '~/assets/data/fitbit_api_mock_2025_2026.json'
 import { startOfDay, endOfDay, isWithinInterval, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from 'date-fns'
 
@@ -443,19 +444,23 @@ export const useFitbitData = () => {
   const getCaloriesData = async (startDate: Date, endDate: Date, period: TimeFilter = 'daily') => {
     // Priority 1: Real Fitbit data (only if Fitbit mode enabled and connected)
     if (isFitbitMode.value && isFitbitConnected.value && !isSimulationMode.value) {
-      if (period === 'daily') {
-        const fitbitData = await fetchFitbitData(format(endDate, 'yyyy-MM-dd'))
-        if (fitbitData?.activity?.summary?.caloriesOut) {
-          return [{
-            date: format(endDate, 'yyyy-MM-dd'),
-            value: fitbitData.activity.summary.caloriesOut
-          }]
+      // For all periods (including daily), fetch from /dashboard/metrics (database)
+      // This ensures patient and doctor always see the same data
+      try {
+        const dashboardData = await fetchFitbitDataRange(startDate, endDate, period as 'daily' | 'weekly' | 'monthly')
+        
+        if (dashboardData?.['activities-calories']) {
+          return dashboardData['activities-calories'].map((item: any) => ({
+            date: item.dateTime || '',
+            value: parseInt(item.value) || 0
+          }))
         }
-      } else {
-        // For weekly/monthly, return empty for calories (Fitbit API doesn't provide aggregated calories)
-        return []
+      } catch (e) {
+        // Error fetching real data - return empty instead of falling back to mock
+        console.warn('Error fetching real data:', e)
       }
-      // Return empty if Fitbit enabled but no data yet
+      
+      // Return empty if Fitbit enabled but no data yet (no automatic fallback to mock)
       return []
     }
 

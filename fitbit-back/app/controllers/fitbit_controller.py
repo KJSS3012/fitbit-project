@@ -263,19 +263,14 @@ def fitbit_status(
     db: Session = Depends(get_db)
 ):
     """Check if user has connected Fitbit account."""
-    print(f"[DEBUG] fitbit_status called for CPF: {cpf}")
     patient_repo = PatientRepository(db)
     patient = patient_repo.find_by_cpf(cpf)
     
     if not patient:
-        print(f"[DEBUG] Patient with CPF {cpf} not found in database")
         return {"connected": False}
     
     if not patient.fitbit_access_token:
-        print(f"[DEBUG] Patient {cpf} found but no Fitbit token")
         return {"connected": False}
-    
-    print(f"[DEBUG] Patient {cpf} is connected to Fitbit")
     return {
         "connected": True,
         "scopes": ["activity", "heartrate", "sleep", "profile"]
@@ -288,15 +283,11 @@ def disconnect_fitbit(
     db: Session = Depends(get_db)
 ):
     """Disconnect Fitbit account by removing tokens."""
-    print(f"[DEBUG] disconnect_fitbit called for CPF: {cpf}")
     patient_repo = PatientRepository(db)
     patient = patient_repo.remove_fitbit_tokens(cpf)
     
     if not patient:
-        print(f"[DEBUG] Patient {cpf} not found")
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    
-    print(f"[DEBUG] Patient {cpf} disconnected successfully")
     return {"message": "Fitbit desconectado com sucesso"}
 
 

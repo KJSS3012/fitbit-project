@@ -3,13 +3,16 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockConfig = { public: { apiBaseUrl: 'http://localhost:8000' } }
+const mockConfig = { public: { apiBase: 'http://localhost:8000' } }
 const mockToken = { value: 'test-token' }
 const mockIsFitbitConnected = { value: false }
+const mockConnectFitbit = vi.fn(async () => {
+  mockIsFitbitConnected.value = true
+})
 
 vi.stubGlobal('useRuntimeConfig', () => mockConfig)
 vi.stubGlobal('useAuth', () => ({ token: mockToken }))
-vi.stubGlobal('useFitbitAuth', () => ({ isFitbitConnected: mockIsFitbitConnected }))
+vi.stubGlobal('useFitbitAuth', () => ({ isFitbitConnected: mockIsFitbitConnected, connectFitbit: mockConnectFitbit }))
 vi.stubGlobal('useState', (key: string, init?: () => any) => {
   const states: Record<string, any> = {
     'fitbit-simulation': { value: false },
@@ -26,6 +29,7 @@ import { useFitbitData } from './useFitbitData'
 describe('useFitbitData - Toggle Exclusivo', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockConnectFitbit.mockClear()
   })
 
   it('deve inicializar com Fitbit mode ativo e simulação desativada', () => {
@@ -101,7 +105,9 @@ describe('useFitbitData - Toggle Exclusivo', () => {
   it('getStepsData deve chamar API quando Fitbit ativo e conectado', async () => {
     mockIsFitbitConnected.value = true
       ; (global.$fetch as any).mockResolvedValue({
-        activity: { summary: { steps: 10000 } }
+        'activities-steps': [
+          { dateTime: '2026-01-01', value: '10000' }
+        ]
       })
 
     const { getStepsData, enableFitbitMode } = useFitbitData()
@@ -133,7 +139,9 @@ describe('useFitbitData - Toggle Exclusivo', () => {
   it('não deve misturar dados de Fitbit e simulação', async () => {
     mockIsFitbitConnected.value = true
       ; (global.$fetch as any).mockResolvedValue({
-        activity: { summary: { steps: 5000 } }
+        'activities-steps': [
+          { dateTime: '2026-01-01', value: '5000' }
+        ]
       })
 
     const { getStepsData, isFitbitMode, isSimulationMode } = useFitbitData()
