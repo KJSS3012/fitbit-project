@@ -134,7 +134,15 @@ const handleSyncNow = async () => {
 
   isSyncing.value = true
   try {
-    await syncFitbitData()
+    // Calculate date range length
+    const start = new Date(currentDateRange.value.start)
+    const end = new Date(currentDateRange.value.end)
+    const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    
+    // Map range length to period parameter
+    const periodParam = diffDays >= 30 ? '30d' : '7d'
+    
+    await syncFitbitData(periodParam)
     // Refresh UI after successful sync
     await refreshData()
   } catch (error) {
